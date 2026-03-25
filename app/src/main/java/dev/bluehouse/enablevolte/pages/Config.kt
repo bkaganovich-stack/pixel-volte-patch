@@ -19,6 +19,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -54,11 +55,15 @@ fun Config(
 ) {
     val TAG = "HomeActivity:Config"
 
-    val moder = SubscriptionModer(LocalContext.current, subId)
-    val carrierModer = CarrierModer(LocalContext.current)
-    val carrierName = moder.carrierName
-    val scrollState = rememberScrollState()
     val context = LocalContext.current
+    // Wrap in remember so Shizuku IPC is not called on every recomposition
+    // (e.g. when file picker opens/closes). Without remember, a momentary
+    // Shizuku hiccup on the recomposition triggered by the picker returning
+    // would throw and crash the entire Composable.
+    val moder = remember { SubscriptionModer(context, subId) }
+    val carrierModer = remember { CarrierModer(context) }
+    val carrierName = remember { try { moder.carrierName } catch (e: Exception) { "" } }
+    val scrollState = rememberScrollState()
     val repo = SettingsRepository(context)
     val cannotFindKeyText = stringResource(R.string.cannot_find_key)
     var configurable by rememberSaveable { mutableStateOf(false) }
@@ -166,6 +171,10 @@ fun Config(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
         uri ?: return@rememberLauncherForActivityResult
+        // Persist current state NOW (main thread, safe) so exportToJson() finds it.
+        // Without this, if the user hasn't changed any toggle since opening the
+        // screen, SharedPreferences might be empty and the export would have no slots.
+        saveCurrentSettings()
         scope.launch(Dispatchers.IO) {
             try {
                 val stream = context.contentResolver.openOutputStream(uri)
