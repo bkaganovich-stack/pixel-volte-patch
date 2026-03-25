@@ -1,6 +1,6 @@
-# Pixel IMS — Auto-Apply Fork (v1.3.3)
+# Pixel IMS Auto-Apply fix
 
-A fork of [tdrkDev/pixel-volte-patch](https://github.com/tdrkDev/pixel-volte-patch) (QPR2 Beta 3 fix), adding three features on top of the original:
+A fork of [tdrkDev/pixel-volte-patch](https://github.com/tdrkDev/pixel-volte-patch) QPR2 Beta 3 fix, adding three features on top of the original:
 
 1. **Settings persistence** — every toggle change is saved to SharedPreferences automatically.
 2. **Auto-apply on reboot** — after each reboot, the app waits for Shizuku to become available (up to 5 minutes) and re-applies all saved settings without any user interaction.
@@ -12,9 +12,9 @@ No root required. Works with Shizuku over Wireless ADB — the standard setup fo
 
 ## What changed from the original
 
-| Area | Original (qpr2) | This fork (v1.3.3) |
+| Area | v1.3.0 QPR2 Beta 3 fix | v1.3.3 Auto-Apply fix |
 |---|---|---|
-| **Version** | 1.2.2 | 1.3.3 (versionCode 15) |
+| **Version** | 1.3.0 | 1.3.3 (versionCode 15) |
 | **Settings persistence** | None — settings reset on every reboot | Saved automatically on every toggle change |
 | **Auto-apply on reboot** | Manual — user must open app and re-apply | Automatic — BootReceiver starts a foreground service that waits for Shizuku, then applies |
 | **Export / Import** | Not available | Export to JSON; import and apply on any device |
