@@ -9,6 +9,7 @@ import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.Handler
+
 import android.os.IBinder
 import android.os.Looper
 import android.util.Log
@@ -19,8 +20,12 @@ import rikka.shizuku.Shizuku
 private const val AUTO_APPLY_TAG = "PixelIMS:AutoApply"
 private const val NOTIFICATION_CHANNEL_ID = "pixel_ims_autostart"
 private const val NOTIFICATION_ID = 9001
-/** Maximum wait time for the Shizuku binder before giving up (ms). */
-private const val SHIZUKU_TIMEOUT_MS = 5 * 60 * 1000L // 5 minutes
+/**
+ * Maximum wait time for the Shizuku binder before giving up (ms).
+ * Must stay under 3 minutes on Android 14+ because SHORT_SERVICE foreground services
+ * are automatically stopped by the system after 3 minutes.
+ */
+private const val SHIZUKU_TIMEOUT_MS = 2 * 60 * 1000L // 2 minutes
 
 /**
  * Foreground service that waits for Shizuku to become available after a device
@@ -44,16 +49,20 @@ class AutoApplyService : Service() {
 
     private val binderReceivedListener: Shizuku.OnBinderReceivedListener = Shizuku.OnBinderReceivedListener {
         Log.d(AUTO_APPLY_TAG, "Shizuku binder received")
+        BootLog.append(this, AUTO_APPLY_TAG, "Shizuku binder received")
         handler.removeCallbacks(timeoutRunnable)
         try {
             if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                 applySettings()
             } else {
-                Log.w(AUTO_APPLY_TAG, "Shizuku binder available but permission not granted")
+                val msg = "Shizuku binder available but permission not granted"
+                Log.w(AUTO_APPLY_TAG, msg)
+                BootLog.append(this, AUTO_APPLY_TAG, "WARN: $msg")
                 stopSelf()
             }
         } catch (e: Exception) {
             Log.e(AUTO_APPLY_TAG, "Error after Shizuku binder received", e)
+            BootLog.appendError(this, AUTO_APPLY_TAG, "Error after Shizuku binder received", e)
             stopSelf()
         }
     }
@@ -61,12 +70,25 @@ class AutoApplyService : Service() {
     override fun onCreate() {
         super.onCreate()
 
+        BootLog.append(this, AUTO_APPLY_TAG, "=== AutoApplyService started ===")
+
         // Hidden API bypass is needed for telephony calls
         HiddenApiBypass.addHiddenApiExemptions("L")
         HiddenApiBypass.addHiddenApiExemptions("I")
 
-        createNotificationChannel()
-        startForegroundCompat()
+        // startForeground() MUST be called before any early return or exception can escape
+        // onCreate(). If it isn't, Android throws ForegroundServiceDidNotStartInTimeException
+        // and kills the process — which also crashes the app on next launch.
+        try {
+            createNotificationChannel()
+            startForegroundCompat()
+            BootLog.append(this, AUTO_APPLY_TAG, "Foreground started (SDK=${Build.VERSION.SDK_INT})")
+        } catch (e: Exception) {
+            Log.e(AUTO_APPLY_TAG, "Failed to start foreground service, aborting", e)
+            BootLog.appendError(this, AUTO_APPLY_TAG, "Failed to start foreground", e)
+            stopSelf()
+            return
+        }
 
         try {
             val binder = Shizuku.getBinder()
@@ -74,9 +96,11 @@ class AutoApplyService : Service() {
                 Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
             ) {
                 Log.d(AUTO_APPLY_TAG, "Shizuku already available, applying immediately")
+                BootLog.append(this, AUTO_APPLY_TAG, "Shizuku already available")
                 applySettings()
             } else {
                 Log.d(AUTO_APPLY_TAG, "Waiting for Shizuku binder (timeout ${SHIZUKU_TIMEOUT_MS / 1000}s)")
+                BootLog.append(this, AUTO_APPLY_TAG, "Waiting for Shizuku (timeout ${SHIZUKU_TIMEOUT_MS / 1000}s), binder=${binder != null}")
                 Shizuku.addBinderReceivedListener(binderReceivedListener)
                 handler.postDelayed(timeoutRunnable, SHIZUKU_TIMEOUT_MS)
                 // Double-check in case Shizuku came up between getBinder() check and addListener
@@ -87,11 +111,13 @@ class AutoApplyService : Service() {
                     handler.removeCallbacks(timeoutRunnable)
                     Shizuku.removeBinderReceivedListener(binderReceivedListener)
                     Log.d(AUTO_APPLY_TAG, "Shizuku appeared between checks, applying immediately")
+                    BootLog.append(this, AUTO_APPLY_TAG, "Shizuku appeared between checks")
                     applySettings()
                 }
             }
         } catch (e: Exception) {
             Log.e(AUTO_APPLY_TAG, "Failed to initialize Shizuku connection", e)
+            BootLog.appendError(this, AUTO_APPLY_TAG, "Failed to init Shizuku", e)
             stopSelf()
         }
     }
@@ -105,33 +131,64 @@ class AutoApplyService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun applySettings() {
+        var applied = 0
         try {
+            BootLog.append(this, AUTO_APPLY_TAG, "applySettings() called")
             val repo = SettingsRepository(this)
             val carrierModer = CarrierModer(this)
             val subscriptions = carrierModer.subscriptions
 
+            BootLog.append(this, AUTO_APPLY_TAG, "subscriptions found: ${subscriptions.size}")
             if (subscriptions.isEmpty()) {
                 Log.w(AUTO_APPLY_TAG, "No active subscriptions found")
+                BootLog.append(this, AUTO_APPLY_TAG, "WARN: No active subscriptions — cannot apply")
                 return
             }
 
-            var applied = 0
             for (subscription in subscriptions) {
                 val slotIndex = subscription.simSlotIndex
                 val settings = repo.loadSlotSettings(slotIndex) ?: run {
                     Log.d(AUTO_APPLY_TAG, "No saved settings for slot $slotIndex, skipping")
+                    BootLog.append(this, AUTO_APPLY_TAG, "slot $slotIndex: no saved settings, skipping")
                     continue
                 }
+                BootLog.append(this, AUTO_APPLY_TAG, "slot $slotIndex (subId=${subscription.subscriptionId}): launching instrumentation…")
                 Log.d(AUTO_APPLY_TAG, "Applying settings for slot $slotIndex (subId=${subscription.subscriptionId})")
-                val moder = SubscriptionModer(this, subscription.subscriptionId)
-                moder.applyAllSettings(settings)
-                applied++
+                try {
+                    val moder = SubscriptionModer(this, subscription.subscriptionId)
+                    moder.applyAllSettings(settings)
+                    // applyAllSettings() → overrideConfigUsingBroker() → startInstrumentation()
+                    // is ASYNC: BrokerInstrumentation runs in a separate SDK-sandbox process.
+                    // We must keep this service process alive so the sandbox can interact with
+                    // ShizukuProvider (hosted in our process) to complete the override.
+                    BootLog.append(this, AUTO_APPLY_TAG, "slot $slotIndex: instrumentation launched (async)")
+                    applied++
+                } catch (e: Exception) {
+                    Log.e(AUTO_APPLY_TAG, "Failed to apply slot $slotIndex", e)
+                    BootLog.appendError(this, AUTO_APPLY_TAG, "slot $slotIndex: FAILED", e)
+                }
             }
-            Log.i(AUTO_APPLY_TAG, "Applied settings for $applied subscription(s)")
+            Log.i(AUTO_APPLY_TAG, "Launched settings apply for $applied subscription(s)")
+            BootLog.append(this, AUTO_APPLY_TAG, "All instrumentations launched: $applied / ${subscriptions.size}")
         } catch (e: Exception) {
             Log.e(AUTO_APPLY_TAG, "Failed to apply settings after reboot", e)
+            BootLog.appendError(this, AUTO_APPLY_TAG, "applySettings() FAILED", e)
         } finally {
-            stopSelf()
+            if (applied > 0) {
+                // Give BrokerInstrumentation time to complete in the SDK sandbox process.
+                // Each instrumentation takes a few seconds to start, delegate shell
+                // permissions, call overrideConfig(), and finish. We keep the service
+                // (and thus our process) alive so ShizukuProvider stays reachable.
+                val delayMs = 12_000L
+                BootLog.append(this, AUTO_APPLY_TAG, "Keeping service alive ${delayMs / 1000}s for instrumentations to finish…")
+                handler.postDelayed({
+                    BootLog.append(this, AUTO_APPLY_TAG, "stopSelf() after delay")
+                    stopSelf()
+                }, delayMs)
+            } else {
+                BootLog.append(this, AUTO_APPLY_TAG, "stopSelf() (nothing applied)")
+                stopSelf()
+            }
         }
     }
 
@@ -154,10 +211,15 @@ class AutoApplyService : Service() {
             .setOngoing(true)
             .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        when {
+            // Android 10+ (API 29+): use CONNECTED_DEVICE — explicitly allowed to start from
+            // BOOT_COMPLETED on all Android versions (including Android 15/16).
+            // DATA_SYNC and SHORT_SERVICE are restricted from BOOT_COMPLETED on Android 15+.
+            // CONNECTED_DEVICE is semantically correct: we are configuring SIM/modem connectivity.
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+            // Android 8-9 (API 26-28): no service type required.
+            else -> startForeground(NOTIFICATION_ID, notification)
         }
     }
 }

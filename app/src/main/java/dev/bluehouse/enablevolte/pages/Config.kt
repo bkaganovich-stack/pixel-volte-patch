@@ -7,9 +7,6 @@ import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
 import android.telephony.CarrierConfigManager
 import android.util.Log
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -44,8 +41,6 @@ import dev.bluehouse.enablevolte.components.UserAgentPropertyView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONException
-import java.lang.IllegalStateException
 
 @Suppress("ktlint:standard:function-naming")
 @Composable
@@ -166,72 +161,6 @@ fun Config(
         saveCurrentSettings()
     }
 
-    // ── Export launcher ───────────────────────────────────────────────────────
-    val exportLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument("application/json"),
-    ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        // Persist current state NOW (main thread, safe) so exportToJson() finds it.
-        // Without this, if the user hasn't changed any toggle since opening the
-        // screen, SharedPreferences might be empty and the export would have no slots.
-        saveCurrentSettings()
-        scope.launch(Dispatchers.IO) {
-            try {
-                val stream = context.contentResolver.openOutputStream(uri)
-                if (stream == null) {
-                    Log.e(TAG, "openOutputStream returned null for $uri")
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(context, context.getString(R.string.settings_export_failed), Toast.LENGTH_SHORT).show()
-                    }
-                    return@launch
-                }
-                stream.use { it.write(repo.exportToJson().toByteArray(Charsets.UTF_8)) }
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.settings_exported), Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Export failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.settings_export_failed), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    // ── Import launcher ───────────────────────────────────────────────────────
-    val importLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        uri ?: return@rememberLauncherForActivityResult
-        scope.launch(Dispatchers.IO) {
-            try {
-                val json = context.contentResolver.openInputStream(uri)?.use { stream ->
-                    stream.readBytes().toString(Charsets.UTF_8)
-                } ?: return@launch
-                repo.importFromJson(json)
-                // Re-apply imported settings for this subscription immediately
-                val imported = repo.loadSlotSettings(simSlotIndex)
-                if (imported != null) {
-                    moder.applyAllSettings(imported)
-                    withContext(Dispatchers.Main) {
-                        loadFlags()
-                        Toast.makeText(context, context.getString(R.string.settings_imported), Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (e: JSONException) {
-                Log.e(TAG, "Import JSON parse error", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.settings_import_invalid), Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Import failed", e)
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.settings_import_failed), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
     LaunchedEffect(true) {
         if (checkShizukuPermission(0) == ShizukuStatus.GRANTED) {
             if (carrierModer.deviceSupportsIMS && subId >= 0) {
@@ -242,7 +171,8 @@ fun Config(
                             loading = false
                         }
                         true
-                    } catch (e: IllegalStateException) {
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to load config flags", e)
                         loading = false
                         false
                     }
@@ -663,18 +593,6 @@ fun Config(
                 }
             }
             HeaderText(text = stringResource(R.string.miscellaneous))
-            ClickablePropertyView(
-                label = stringResource(R.string.export_settings),
-                value = stringResource(R.string.export_settings_description),
-            ) {
-                exportLauncher.launch("pixel_ims_settings.json")
-            }
-            ClickablePropertyView(
-                label = stringResource(R.string.import_settings),
-                value = stringResource(R.string.import_settings_description),
-            ) {
-                importLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-            }
             ClickablePropertyView(
                 label = stringResource(R.string.reset_all_settings),
                 value = stringResource(R.string.reverts_to_carrier_default),

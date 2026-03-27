@@ -86,7 +86,8 @@
     <string name="auto_apply_hint_label">How it works</string>
     <string name="auto_apply_hint_value">Settings are saved automatically every time you change a toggle. On reboot, the app waits for Shizuku to start (up to 5 minutes) and then re-applies them without any user interaction.\n\nRequires Shizuku to auto-start after reboot: go to Developer Options → Wireless Debugging, keep it enabled (persists across reboots on Pixel), then configure Shizuku to use Wireless ADB. No root required.</string>
 
-    <!-- v1.3.3: Export / Import -->
+    <!-- v1.3.4: Export / Import (moved to Home screen — covers all SIMs at once) -->
+    <string name="settings_file_section">Settings File</string>
     <string name="export_settings">Export settings to file</string>
     <string name="export_settings_description">Save current settings as a JSON file</string>
     <string name="import_settings">Import settings from file</string>
@@ -96,6 +97,14 @@
     <string name="settings_imported">Settings imported and applied</string>
     <string name="settings_import_failed">Import failed</string>
     <string name="settings_import_invalid">Invalid Pixel IMS settings file</string>
+
+    <!-- v1.3.4: Boot diagnostics log -->
+    <string name="boot_log_section">Boot Diagnostics</string>
+    <string name="boot_log_copied">Log copied to clipboard</string>
+    <string name="boot_log_cleared">Log cleared</string>
+    <string name="boot_log_copy">Copy log</string>
+    <string name="boot_log_clear">Clear log</string>
+    <string name="boot_log_refresh">Refresh</string>
 
     <!-- v1.3.3: AutoApplyService notification -->
     <string name="notification_channel_name">Auto-apply service</string>
