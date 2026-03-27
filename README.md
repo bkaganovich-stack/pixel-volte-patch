@@ -8,23 +8,6 @@ A fork of [tdrkDev/pixel-volte-patch](https://github.com/tdrkDev/pixel-volte-pat
 
 No root required. Works with Shizuku over Wireless ADB — the standard setup for Pixel phones.
 
----
-
-## What changed from the original
-
-| Area | v1.3.0 QPR2 Beta 3 fix | v1.3.3 Auto-Apply fix |
-|---|---|---|
-| **Version** | 1.3.0 | 1.3.3 (versionCode 15) |
-| **Settings persistence** | None — settings reset on every reboot | Saved automatically on every toggle change |
-| **Auto-apply on reboot** | Manual — user must open app and re-apply | Automatic — BootReceiver starts a foreground service that waits for Shizuku, then applies |
-| **Export / Import** | Not available | Export to JSON; import and apply on any device |
-| **New files** | — | `SettingsRepository.kt`, `BootReceiver.kt`, `AutoApplyService.kt` |
-| **Modified files** | — | `Moder.kt`, `Config.kt`, `Home.kt`, `strings.xml`, `AndroidManifest.xml`, `build.gradle` |
-
-All original functionality (VoLTE, VoNR, Cross-SIM, VoWiFi, VT, cosmetic toggles, Expert Mode, Dump Config, QS tiles) is unchanged.
-
----
-
 ## How auto-apply works
 
 ```
