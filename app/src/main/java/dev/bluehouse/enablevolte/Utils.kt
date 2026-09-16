@@ -17,6 +17,7 @@ import androidx.navigation.get
 import com.github.kittinunf.fuel.httpGet
 import com.github.kittinunf.fuel.json.responseJson
 import com.github.kittinunf.result.Result
+import net.swiftzer.semver.SemVer
 import rikka.shizuku.Shizuku
 import java.lang.reflect.InvocationTargetException
 
@@ -72,8 +73,24 @@ fun stopDelegateShellPermissionIdentityCompat(
 val SubscriptionInfo.uniqueName: String
     get() = "${this.displayName} (SIM ${this.simSlotIndex + 1})"
 
+/** Repository this build checks for updates and links its releases to. */
+const val GITHUB_REPO = "bkaganovich-stack/pixel-volte-patch"
+
+/** Release page for a tag as returned by [getLatestAppVersion]. */
+fun releaseUrl(tag: String) = "https://github.com/$GITHUB_REPO/releases/tag/$tag"
+
+/**
+ * Parses a GitHub release tag into a comparable version.
+ *
+ * Tags in this repository carry a leading "v" ("v1.3.5"), which semver does not allow,
+ * so it is stripped first. Returns null rather than throwing: this is called from a
+ * network callback, where an [IllegalArgumentException] on an unexpected tag would go
+ * uncaught and take the app down.
+ */
+fun parseReleaseTag(tag: String): SemVer? = SemVer.parseOrNull(tag.removePrefix("v"))
+
 fun getLatestAppVersion(handler: (String) -> Unit) {
-    "https://api.github.com/repos/kyujin-cho/pixel-volte-patch/releases"
+    "https://api.github.com/repos/$GITHUB_REPO/releases"
         .httpGet()
         .header("X-GitHub-Api-Version", "2022-11-28")
         .responseJson { _, _, result ->

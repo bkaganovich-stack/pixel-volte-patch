@@ -51,11 +51,12 @@ import dev.bluehouse.enablevolte.components.ClickablePropertyView
 import dev.bluehouse.enablevolte.components.HeaderText
 import dev.bluehouse.enablevolte.components.StringPropertyView
 import dev.bluehouse.enablevolte.getLatestAppVersion
+import dev.bluehouse.enablevolte.parseReleaseTag
+import dev.bluehouse.enablevolte.releaseUrl
 import dev.bluehouse.enablevolte.uniqueName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import net.swiftzer.semver.SemVer
 import org.json.JSONException
 import rikka.shizuku.Shizuku
 
@@ -235,9 +236,9 @@ fun Home(navController: NavController) {
         }
         getLatestAppVersion {
             Log.d(TAG, "Fetched version $it")
-            val latest = SemVer.parse(it)
-            val current = SemVer.parse(BuildConfig.VERSION_NAME)
-            if (latest > current) {
+            val latest = parseReleaseTag(it)
+            val current = parseReleaseTag(BuildConfig.VERSION_NAME)
+            if (latest != null && current != null && latest > current) {
                 newerVersion = it
             }
         }
@@ -250,7 +251,7 @@ fun Home(navController: NavController) {
                 label = BuildConfig.VERSION_NAME,
                 value = stringResource(R.string.newer_version_available, newerVersion),
             ) {
-                val url = "https://github.com/kyujin-cho/pixel-volte-patch/releases/tag/$newerVersion"
+                val url = releaseUrl(newerVersion)
                 val i = Intent(Intent.ACTION_VIEW)
                 i.data = url.toUri()
                 context.startActivity(i, null)
