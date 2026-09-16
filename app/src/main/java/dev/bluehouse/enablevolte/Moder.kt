@@ -166,10 +166,10 @@ class SubscriptionModer(
         val arg =
             bundle ?: run {
                 val empty = Bundle()
-                empty.putBoolean("moder_clear", true)
+                empty.putBoolean(ARG_CLEAR, true)
                 empty
             }
-        arg.putInt("moder_subId", subscriptionId)
+        arg.putInt(ARG_SUB_ID, subscriptionId)
 
         am.startInstrumentation(
             ComponentName(context, Class.forName("dev.bluehouse.enablevolte.BrokerInstrumentation")),

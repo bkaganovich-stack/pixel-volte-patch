@@ -13,6 +13,10 @@ import rikka.shizuku.SystemServiceHelper
 
 const val TAG = "BrokerInstrumentation"
 
+/** Control keys [SubscriptionModer] passes in the instrumentation arguments. */
+const val ARG_SUB_ID = "moder_subId"
+const val ARG_CLEAR = "moder_clear"
+
 class BrokerInstrumentation : Instrumentation() {
     private fun activityManager(): IActivityManager =
         IActivityManager.Stub.asInterface(ShizukuBinderWrapper(SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE)))
@@ -47,7 +51,15 @@ class BrokerInstrumentation : Instrumentation() {
         am.startDelegateShellPermissionIdentity(uid, null)
         try {
             val configurationManager = this.context.getSystemService(CarrierConfigManager::class.java)
-            val overrideValues = toPersistableBundle(arguments)
+            // Drop our own control keys: everything left in the bundle is written verbatim
+            // into the carrier config, and moder_subId was ending up there as a stray key.
+            val overrideValues =
+                toPersistableBundle(
+                    Bundle(arguments).apply {
+                        remove(ARG_SUB_ID)
+                        remove(ARG_CLEAR)
+                    },
+                )
 
             BootLog.append(context, TAG, "calling overrideConfig(subId=$subId, persistent=false), keys=${overrideValues.keySet().size}")
             configurationManager.overrideConfig(subId, overrideValues, false)
@@ -92,8 +104,8 @@ class BrokerInstrumentation : Instrumentation() {
             return
         }
 
-        val clear = arguments.getBoolean("moder_clear")
-        val subId = arguments.getInt("moder_subId")
+        val clear = arguments.getBoolean(ARG_CLEAR)
+        val subId = arguments.getInt(ARG_SUB_ID)
         BootLog.append(context, TAG, "onCreate: subId=$subId clear=$clear")
 
         // Catches Throwable, not Exception: this instrumentation runs inside the app's
