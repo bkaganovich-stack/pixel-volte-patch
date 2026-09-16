@@ -1,5 +1,6 @@
 package dev.bluehouse.enablevolte
 
+import android.app.IActivityManager
 import android.content.pm.PackageManager
 import android.os.BaseBundle
 import android.os.Bundle
@@ -17,6 +18,7 @@ import com.github.kittinunf.fuel.httpGet
 import com.github.kittinunf.fuel.json.responseJson
 import com.github.kittinunf.result.Result
 import rikka.shizuku.Shizuku
+import java.lang.reflect.InvocationTargetException
 
 enum class ShizukuStatus {
     GRANTED,
@@ -37,6 +39,35 @@ fun checkShizukuPermission(code: Int): ShizukuStatus =
     } else {
         ShizukuStatus.STOPPED
     }
+
+/**
+ * Drops the shell permission delegation previously taken for [uid].
+ *
+ * Android 17 (SDK 37) moved the bookkeeping into `AccessCheckDelegateHelper`, which
+ * tracks one delegate per uid, and changed the signature of
+ * `IActivityManager.stopDelegateShellPermissionIdentity` from `()V` to `(int uid)V`.
+ * We compile against the older stub, so a direct call raises [NoSuchMethodError] on
+ * Android 17 — and because that is an [Error] rather than an [Exception] it slipped
+ * past the `catch (e: Exception)` blocks and killed the whole app process. Dispatch
+ * reflectively so both signatures keep working.
+ */
+fun stopDelegateShellPermissionIdentityCompat(
+    am: IActivityManager,
+    uid: Int,
+) {
+    val method =
+        am.javaClass.methods.firstOrNull { it.name == "stopDelegateShellPermissionIdentity" }
+            ?: throw NoSuchMethodError("IActivityManager.stopDelegateShellPermissionIdentity")
+    try {
+        if (method.parameterTypes.isEmpty()) {
+            method.invoke(am)
+        } else {
+            method.invoke(am, uid)
+        }
+    } catch (e: InvocationTargetException) {
+        throw e.cause ?: e
+    }
+}
 
 val SubscriptionInfo.uniqueName: String
     get() = "${this.displayName} (SIM ${this.simSlotIndex + 1})"

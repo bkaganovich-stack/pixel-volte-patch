@@ -64,6 +64,7 @@ fun Config(
     var configurable by rememberSaveable { mutableStateOf(false) }
     var voLTEEnabled by rememberSaveable { mutableStateOf(false) }
     var voNREnabled by rememberSaveable { mutableStateOf(false) }
+    var nrSAEnabled by rememberSaveable { mutableStateOf(false) }
     var crossSIMEnabled by rememberSaveable { mutableStateOf(false) }
     var voWiFiEnabled by rememberSaveable { mutableStateOf(false) }
     var voWiFiEnabledWhileRoaming by rememberSaveable { mutableStateOf(false) }
@@ -97,6 +98,7 @@ fun Config(
             SubscriptionSettings(
                 voLTEEnabled = voLTEEnabled,
                 voNREnabled = voNREnabled,
+                nrSAEnabled = nrSAEnabled,
                 crossSIMEnabled = crossSIMEnabled,
                 voWiFiEnabled = voWiFiEnabled,
                 voWiFiEnabledWhileRoaming = voWiFiEnabledWhileRoaming,
@@ -134,6 +136,7 @@ fun Config(
         reversedConfigurableItems = configurableItems.entries.associate { (k, v) -> v to k }
         voLTEEnabled = moder.isVoLteConfigEnabled
         voNREnabled = VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE && moder.isVoNrConfigEnabled
+        nrSAEnabled = VERSION.SDK_INT >= VERSION_CODES.S && moder.isNRConfigEnabled
         crossSIMEnabled = moder.isCrossSIMConfigEnabled
         voWiFiEnabled = moder.isVoWifiConfigEnabled
         voWiFiEnabledWhileRoaming = moder.isVoWifiWhileRoamingEnabled
@@ -221,6 +224,18 @@ fun Config(
                             moder.restartIMSRegistration()
                             true
                         }
+                    saveCurrentSettings()
+                }
+            }
+
+            BooleanPropertyView(
+                label = stringResource(R.string.enable_nr_sa),
+                toggled = nrSAEnabled,
+                minSdk = VERSION_CODES.S,
+            ) {
+                if (VERSION.SDK_INT >= VERSION_CODES.S) {
+                    nrSAEnabled = !nrSAEnabled
+                    moder.updateNRAvailabilities(nrSAEnabled)
                     saveCurrentSettings()
                 }
             }

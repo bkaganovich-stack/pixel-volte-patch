@@ -16,7 +16,7 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private const val PREFS_NAME = "pixel_ims_settings"
         private const val KEY_AUTO_APPLY_ENABLED = "auto_apply_on_reboot"
-        private const val EXPORT_VERSION = "1.3.3"
+        private const val EXPORT_VERSION = "1.3.5"
 
         private fun slotKey(slotIndex: Int, key: String) = "slot_${slotIndex}_$key"
     }
@@ -39,6 +39,7 @@ class SettingsRepository(private val context: Context) {
             putBoolean(slotKey(slotIndex, "configured"), true)
             putBoolean(slotKey(slotIndex, "volte"), settings.voLTEEnabled)
             putBoolean(slotKey(slotIndex, "vonr"), settings.voNREnabled)
+            putBoolean(slotKey(slotIndex, "nr_sa"), settings.nrSAEnabled)
             putBoolean(slotKey(slotIndex, "crosssim"), settings.crossSIMEnabled)
             putBoolean(slotKey(slotIndex, "vowifi"), settings.voWiFiEnabled)
             putBoolean(slotKey(slotIndex, "vowifi_roaming"), settings.voWiFiEnabledWhileRoaming)
@@ -67,6 +68,7 @@ class SettingsRepository(private val context: Context) {
         return SubscriptionSettings(
             voLTEEnabled = prefs.getBoolean(slotKey(slotIndex, "volte"), false),
             voNREnabled = prefs.getBoolean(slotKey(slotIndex, "vonr"), false),
+            nrSAEnabled = prefs.getBoolean(slotKey(slotIndex, "nr_sa"), false),
             crossSIMEnabled = prefs.getBoolean(slotKey(slotIndex, "crosssim"), false),
             voWiFiEnabled = prefs.getBoolean(slotKey(slotIndex, "vowifi"), false),
             voWiFiEnabledWhileRoaming = prefs.getBoolean(slotKey(slotIndex, "vowifi_roaming"), false),
@@ -103,6 +105,7 @@ class SettingsRepository(private val context: Context) {
             obj.put("slotIndex", slotIndex)
             obj.put("voLTEEnabled", settings.voLTEEnabled)
             obj.put("voNREnabled", settings.voNREnabled)
+            obj.put("nrSAEnabled", settings.nrSAEnabled)
             obj.put("crossSIMEnabled", settings.crossSIMEnabled)
             obj.put("voWiFiEnabled", settings.voWiFiEnabled)
             obj.put("voWiFiEnabledWhileRoaming", settings.voWiFiEnabledWhileRoaming)
@@ -143,6 +146,8 @@ class SettingsRepository(private val context: Context) {
             val settings = SubscriptionSettings(
                 voLTEEnabled = obj.getBoolean("voLTEEnabled"),
                 voNREnabled = obj.getBoolean("voNREnabled"),
+                // optBoolean: files exported by <= 1.3.4 have no such key.
+                nrSAEnabled = obj.optBoolean("nrSAEnabled", false),
                 crossSIMEnabled = obj.getBoolean("crossSIMEnabled"),
                 voWiFiEnabled = obj.getBoolean("voWiFiEnabled"),
                 voWiFiEnabledWhileRoaming = obj.getBoolean("voWiFiEnabledWhileRoaming"),
@@ -171,6 +176,8 @@ class SettingsRepository(private val context: Context) {
 data class SubscriptionSettings(
     val voLTEEnabled: Boolean,
     val voNREnabled: Boolean,
+    /** 5G SA (standalone) present in KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY. */
+    val nrSAEnabled: Boolean,
     val crossSIMEnabled: Boolean,
     val voWiFiEnabled: Boolean,
     val voWiFiEnabledWhileRoaming: Boolean,
