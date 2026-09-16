@@ -14,6 +14,7 @@
     <string name="shizuku_permission_granted">Shizuku 已授权</string>
     <string name="enable_volte">启用 VoLTE</string>
     <string name="enable_vonr">启用 VoNR</string>
+    <string name="enable_nr_sa">启用 5G SA (独立组网)</string>
     <string name="enable_crosssim">启用备用通话</string>
     <string name="enable_vowifi">启用 VoWiFi</string>
     <string name="enable_vowifi_while_roamed">漫游时启用 VoWiFi</string>

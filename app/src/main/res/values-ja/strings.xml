@@ -14,6 +14,7 @@
   <string name="shizuku_permission_granted">Shizuku の権限を許可</string>
   <string name="enable_volte">VoLTE を有効化</string>
   <string name="enable_vonr">VoNR を有効化</string>
+  <string name="enable_nr_sa">5G SA (スタンドアロン) を有効化</string>
   <string name="enable_crosssim">バックアップ通話を有効化</string>
   <string name="enable_vowifi">Wi-Fi 通話を有効化</string>
   <string name="enable_vowifi_while_roamed">ローミング中に Wi-Fi 通話を有効化</string>

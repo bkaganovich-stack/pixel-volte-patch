@@ -28,6 +28,10 @@ object InterfaceCache {
     val cache = HashMap<String, IInterface>()
 }
 
+/** Values of [CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY]. */
+const val CARRIER_NR_AVAILABILITY_NSA = 1
+const val CARRIER_NR_AVAILABILITY_SA = 2
+
 open class Moder {
     @Suppress("ktlint:standard:property-naming")
     val KEY_IMS_USER_AGENT = "ims.ims_user_agent_string"
@@ -126,6 +130,13 @@ class CarrierModer(
             return res.getBoolean(volteConfigId)
         }
 }
+
+private fun nrAvailabilities(saEnabled: Boolean): IntArray =
+    if (saEnabled) {
+        intArrayOf(CARRIER_NR_AVAILABILITY_NSA, CARRIER_NR_AVAILABILITY_SA)
+    } else {
+        intArrayOf(CARRIER_NR_AVAILABILITY_NSA)
+    }
 
 class SubscriptionModer(
     private val context: Context,
@@ -262,6 +273,16 @@ class SubscriptionModer(
         this.overrideConfig(null)
     }
 
+    /**
+     * Sets [CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY]. Turning SA off
+     * leaves NSA in place rather than emptying the array, which is what stock Pixel
+     * carrier configs ship and avoids disabling 5G outright.
+     */
+    fun updateNRAvailabilities(saEnabled: Boolean) {
+        Log.d(TAG, "Setting NR availabilities, SA=$saEnabled")
+        this.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY, nrAvailabilities(saEnabled))
+    }
+
     fun restartIMSRegistration() {
         val telephony = this.loadCachedInterface { telephony }
         val sub = this.loadCachedInterface { sub }
@@ -293,6 +314,10 @@ class SubscriptionModer(
         if (Build.VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE) {
             bundle.putBoolean(CarrierConfigManager.KEY_VONR_ENABLED_BOOL, settings.voNREnabled)
             bundle.putBoolean(CarrierConfigManager.KEY_VONR_SETTING_VISIBILITY_BOOL, settings.voNREnabled)
+        }
+
+        if (Build.VERSION.SDK_INT >= VERSION_CODES.S) {
+            bundle.putIntArray(CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY, nrAvailabilities(settings.nrSAEnabled))
         }
 
         if (Build.VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
@@ -508,12 +533,20 @@ class SubscriptionModer(
                     !this.getBooleanValue(CarrierConfigManager.KEY_HIDE_ENHANCED_4G_LTE_BOOL)
             }
 
+    /**
+     * Whether 5G SA (standalone) is unlocked for this SIM.
+     *
+     * Pixel carrier configs frequently ship `[NSA]` only, which keeps the modem off any
+     * standalone network no matter what the user picks in Settings. Russian operators
+     * run their n79 (4.6-5.0 GHz) layer as SA, so SA has to be in the list for it to
+     * attach at all.
+     */
     val isNRConfigEnabled: Boolean
         get() =
             if (Build.VERSION.SDK_INT >= VERSION_CODES.S) {
                 this
                     .getIntArrayValue(CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY)
-                    .contentEquals(intArrayOf(1, 2))
+                    .contains(CARRIER_NR_AVAILABILITY_SA)
             } else {
                 false
             }

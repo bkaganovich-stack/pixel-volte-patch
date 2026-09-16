@@ -104,6 +104,7 @@ fun Home(navController: NavController) {
                     SubscriptionSettings(
                         voLTEEnabled = moder.isVoLteConfigEnabled,
                         voNREnabled = VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE && moder.isVoNrConfigEnabled,
+                        nrSAEnabled = VERSION.SDK_INT >= VERSION_CODES.S && moder.isNRConfigEnabled,
                         crossSIMEnabled = moder.isCrossSIMConfigEnabled,
                         voWiFiEnabled = moder.isVoWifiConfigEnabled,
                         voWiFiEnabledWhileRoaming = moder.isVoWifiWhileRoamingEnabled,
