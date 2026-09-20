@@ -6,22 +6,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Required for BootReceiver to receive BOOT_COMPLETED -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- Required for AutoApplyService (foreground service) -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <!-- Android 10+: connected-device foreground service type — allowed from BOOT_COMPLETED
-         on all Android versions. Semantically correct: configuring SIM/modem connectivity.
-         connectedDevice FGS requires FOREGROUND_SERVICE_CONNECTED_DEVICE + at least one of the
-         device-connectivity permissions. CHANGE_NETWORK_STATE is accurate (we change carrier
-         network config) and is a normal permission (no runtime prompt needed). -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
-    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
-    <!-- Android 13+: show notification from AutoApplyService -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Re-applying runs as WorkManager work, not a foreground service: its queue is
+         persisted across reboots and Doze, which a boot-time service cannot be. -->
 
     <instrumentation
         android:name="dev.bluehouse.enablevolte.BrokerInstrumentation"
         android:targetPackage="dev.bluehouse.enablevolte"/>
     <application
+        android:name=".PixelImsApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -41,7 +33,8 @@
             </intent-filter>
         </activity>
 
-        <!-- Receives BOOT_COMPLETED and starts AutoApplyService -->
+        <!-- Every moment the platform may have discarded our (non-persistent) overrides:
+             a reboot, our own APK being replaced, or the carrier config being reloaded. -->
         <receiver
             android:name=".BootReceiver"
             android:exported="false">
@@ -49,16 +42,10 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <!-- HTC/Huawei quick-boot support -->
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.telephony.action.CARRIER_CONFIG_CHANGED" />
             </intent-filter>
         </receiver>
-
-        <!-- Foreground service that waits for Shizuku and re-applies carrier config on boot.
-             connectedDevice is allowed to start from BOOT_COMPLETED on Android 10+ (API 29+),
-             including Android 15/16 where dataSync and shortService are restricted from boot. -->
-        <service
-            android:name=".AutoApplyService"
-            android:exported="false"
-            android:foregroundServiceType="connectedDevice" />
 
         <service
             android:name=".SIM1VoLTEConfigToggleQSTileService"

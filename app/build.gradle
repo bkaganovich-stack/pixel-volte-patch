@@ -90,4 +90,5 @@ dependencies {
     implementation "com.github.kittinunf.fuel:fuel-android:2.3.1"
     implementation "com.github.kittinunf.fuel:fuel-json:2.3.1"
     implementation 'net.swiftzer.semver:semver:2.1.0'
+    implementation 'androidx.work:work-runtime-ktx:2.10.1'
 }
