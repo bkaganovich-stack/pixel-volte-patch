@@ -291,7 +291,7 @@ class SubscriptionModer(
 
     /**
      * Applies all settings from [settings] in a single carrier config override call,
-     * then restarts IMS registration. Used by [AutoApplyService] on boot.
+     * then restarts IMS registration. Used by [AutoApplyWorker] when re-applying.
      */
     fun applyAllSettings(settings: SubscriptionSettings) {
         Log.d(TAG, "applyAllSettings for subId=$subscriptionId")
@@ -344,6 +344,44 @@ class SubscriptionModer(
         this.overrideConfig(bundle)
         this.restartIMSRegistration()
     }
+
+    /**
+     * Whether the live carrier config already matches [settings].
+     *
+     * Used to skip a redundant apply on boot. That matters beyond saving an IPC:
+     * [applyAllSettings] ends with [restartIMSRegistration], so re-applying an identical
+     * config would drop and re-register IMS on every single boot for no reason.
+     *
+     * Returns false if anything cannot be read — better a redundant apply than a silent skip.
+     */
+    fun matchesSettings(settings: SubscriptionSettings): Boolean =
+        try {
+            val vonrMatches =
+                Build.VERSION.SDK_INT < VERSION_CODES.UPSIDE_DOWN_CAKE ||
+                    isVoNrConfigEnabled == settings.voNREnabled
+            val nrMatches =
+                Build.VERSION.SDK_INT < VERSION_CODES.S ||
+                    isNRConfigEnabled == settings.nrSAEnabled
+            val crossSimMatches =
+                Build.VERSION.SDK_INT < VERSION_CODES.TIRAMISU ||
+                    isCrossSIMConfigEnabled == settings.crossSIMEnabled
+
+            isVoLteConfigEnabled == settings.voLTEEnabled &&
+                vonrMatches &&
+                nrMatches &&
+                crossSimMatches &&
+                isVoWifiConfigEnabled == settings.voWiFiEnabled &&
+                isVoWifiWhileRoamingEnabled == settings.voWiFiEnabledWhileRoaming &&
+                isVtConfigEnabled == settings.vtEnabled &&
+                supportWfcWifiOnly == settings.supportWfcWifiOnly &&
+                ssOverUtEnabled == settings.ssOverUtEnabled &&
+                ssOverCDMAEnabled == settings.ssOverCDMAEnabled &&
+                is4GPlusEnabled == settings.is4GPlusEnabled &&
+                wfcSpnFormatIndex == settings.wfcSpnFormatIndex
+        } catch (e: Throwable) {
+            Log.d(TAG, "matchesSettings: could not read config, assuming mismatch", e)
+            false
+        }
 
     fun getStringValue(key: String): String? {
         Log.d(TAG, "Resolving string value of key $key")

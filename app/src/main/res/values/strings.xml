@@ -85,7 +85,7 @@
     <string name="automation">Automation</string>
     <string name="auto_apply_on_reboot">Auto-apply settings on reboot</string>
     <string name="auto_apply_hint_label">How it works</string>
-    <string name="auto_apply_hint_value">Settings are saved automatically every time you change a toggle. On reboot, the app waits for Shizuku to start (up to 5 minutes) and then re-applies them without any user interaction.\n\nRequires Shizuku to auto-start after reboot: go to Developer Options → Wireless Debugging, keep it enabled (persists across reboots on Pixel), then configure Shizuku to use Wireless ADB. No root required.</string>
+    <string name="auto_apply_hint_value">Settings are saved automatically every time you change a toggle. They are re-applied whenever the carrier config may have been reset: after a reboot, after an app update, and when the system reloads carrier settings.\n\nThe re-apply is queued as persistent background work and runs the moment Shizuku becomes reachable — seconds after boot or hours later, whenever you start it. Nothing is applied twice: if the live config already matches, IMS is left alone.\n\nShizuku must be running for this to happen. Without root it does not start by itself; the usual setup is Developer Options → Wireless Debugging plus the start-on-boot option in Shizuku itself. No root required.</string>
 
     <!-- v1.3.4: Export / Import (moved to Home screen — covers all SIMs at once) -->
     <string name="settings_file_section">Settings File</string>

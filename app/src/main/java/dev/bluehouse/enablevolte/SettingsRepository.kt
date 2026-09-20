@@ -2,6 +2,8 @@ package dev.bluehouse.enablevolte
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.Build
+import android.os.SystemClock
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
@@ -16,6 +18,9 @@ class SettingsRepository(private val context: Context) {
     companion object {
         private const val PREFS_NAME = "pixel_ims_settings"
         private const val KEY_AUTO_APPLY_ENABLED = "auto_apply_on_reboot"
+        private const val KEY_LAST_APPLIED_BOOT_ID = "last_applied_boot_id"
+        private const val KEY_LAST_APPLIED_AT = "last_applied_at"
+        private const val KEY_LAST_APPLIED_FINGERPRINT = "last_applied_fingerprint"
         private const val EXPORT_VERSION = "1.3.5"
 
         private fun slotKey(slotIndex: Int, key: String) = "slot_${slotIndex}_$key"
@@ -28,6 +33,49 @@ class SettingsRepository(private val context: Context) {
     var autoApplyEnabled: Boolean
         get() = prefs.getBoolean(KEY_AUTO_APPLY_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_APPLY_ENABLED, value).apply()
+
+    /**
+     * Wall-clock time the device booted, stable for the whole boot session and different
+     * after every restart. Lets us tell "already applied during this boot" without relying
+     * on BOOT_COMPLETED, which never arrives if the app was force-stopped.
+     * Rounded to whole seconds to absorb clock drift between reads.
+     */
+    val currentBootId: Long
+        get() = (System.currentTimeMillis() - SystemClock.elapsedRealtime()) / 1000
+
+    /** Boot session during which settings were last applied, or 0 if never. */
+    var lastAppliedBootId: Long
+        get() = prefs.getLong(KEY_LAST_APPLIED_BOOT_ID, 0)
+        set(value) = prefs.edit().putLong(KEY_LAST_APPLIED_BOOT_ID, value).apply()
+
+    /**
+     * When we last called overrideConfig ourselves.
+     *
+     * Persisted rather than held in a static field: ACTION_CARRIER_CONFIG_CHANGED can start a
+     * fresh process, where an in-memory timestamp would read back as 0 and defeat the echo
+     * guard that stops us re-applying in a loop.
+     */
+    var lastAppliedAt: Long
+        get() = prefs.getLong(KEY_LAST_APPLIED_AT, 0)
+        set(value) = prefs.edit().putLong(KEY_LAST_APPLIED_AT, value).apply()
+
+    /** Build fingerprint settings were last applied under; a change means an OTA wiped them. */
+    var lastAppliedFingerprint: String
+        get() = prefs.getString(KEY_LAST_APPLIED_FINGERPRINT, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_LAST_APPLIED_FINGERPRINT, value).apply()
+
+    /** True when this boot session has not had settings applied yet, or an OTA landed. */
+    fun needsApply(): Boolean =
+        lastAppliedBootId != currentBootId || lastAppliedFingerprint != Build.FINGERPRINT
+
+    fun markApplied() {
+        prefs
+            .edit()
+            .putLong(KEY_LAST_APPLIED_BOOT_ID, currentBootId)
+            .putLong(KEY_LAST_APPLIED_AT, System.currentTimeMillis())
+            .putString(KEY_LAST_APPLIED_FINGERPRINT, Build.FINGERPRINT)
+            .apply()
+    }
 
     /** Returns true if there are saved settings for the given SIM slot. */
     fun hasSettings(slotIndex: Int): Boolean =
