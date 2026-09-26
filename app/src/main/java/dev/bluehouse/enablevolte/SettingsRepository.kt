@@ -21,9 +21,11 @@ class SettingsRepository(private val context: Context) {
         private const val KEY_LAST_APPLIED_BOOT_ID = "last_applied_boot_id"
         private const val KEY_LAST_APPLIED_AT = "last_applied_at"
         private const val KEY_LAST_APPLIED_FINGERPRINT = "last_applied_fingerprint"
-        private const val EXPORT_VERSION = "1.3.5"
+        private const val EXPORT_VERSION = "1.3.7"
 
         private fun slotKey(slotIndex: Int, key: String) = "slot_${slotIndex}_$key"
+
+        private fun optInBackupKey(simIdentity: String) = "optin_backup_$simIdentity"
     }
 
     private val prefs: SharedPreferences
@@ -77,6 +79,28 @@ class SettingsRepository(private val context: Context) {
             .apply()
     }
 
+    /**
+     * Original VoIMS opt-in values of a SIM, saved before we first changed them. Keyed by a
+     * hash of the ICCID rather than the slot, so moving SIMs between slots cannot make us
+     * restore one card's values onto another.
+     */
+    fun loadOptInBackup(simIdentity: String): OptInBackup? {
+        val raw = prefs.getString(optInBackupKey(simIdentity), null) ?: return null
+        val parts = raw.split(",").mapNotNull { it.toIntOrNull() }
+        return if (parts.size == 2) OptInBackup(parts[0], parts[1]) else null
+    }
+
+    fun saveOptInBackup(
+        simIdentity: String,
+        backup: OptInBackup,
+    ) {
+        prefs.edit().putString(optInBackupKey(simIdentity), "${backup.optIn},${backup.enhanced4gMode}").apply()
+    }
+
+    fun clearOptInBackup(simIdentity: String) {
+        prefs.edit().remove(optInBackupKey(simIdentity)).apply()
+    }
+
     /** Returns true if there are saved settings for the given SIM slot. */
     fun hasSettings(slotIndex: Int): Boolean =
         prefs.getBoolean(slotKey(slotIndex, "configured"), false)
@@ -86,6 +110,7 @@ class SettingsRepository(private val context: Context) {
         prefs.edit().apply {
             putBoolean(slotKey(slotIndex, "configured"), true)
             putBoolean(slotKey(slotIndex, "volte"), settings.voLTEEnabled)
+            putBoolean(slotKey(slotIndex, "persistent_volte"), settings.persistentVoLTE)
             putBoolean(slotKey(slotIndex, "vonr"), settings.voNREnabled)
             putBoolean(slotKey(slotIndex, "nr_sa"), settings.nrSAEnabled)
             putBoolean(slotKey(slotIndex, "crosssim"), settings.crossSIMEnabled)
@@ -115,6 +140,7 @@ class SettingsRepository(private val context: Context) {
         if (!hasSettings(slotIndex)) return null
         return SubscriptionSettings(
             voLTEEnabled = prefs.getBoolean(slotKey(slotIndex, "volte"), false),
+            persistentVoLTE = prefs.getBoolean(slotKey(slotIndex, "persistent_volte"), false),
             voNREnabled = prefs.getBoolean(slotKey(slotIndex, "vonr"), false),
             nrSAEnabled = prefs.getBoolean(slotKey(slotIndex, "nr_sa"), false),
             crossSIMEnabled = prefs.getBoolean(slotKey(slotIndex, "crosssim"), false),
@@ -152,6 +178,7 @@ class SettingsRepository(private val context: Context) {
             val obj = JSONObject()
             obj.put("slotIndex", slotIndex)
             obj.put("voLTEEnabled", settings.voLTEEnabled)
+            obj.put("persistentVoLTE", settings.persistentVoLTE)
             obj.put("voNREnabled", settings.voNREnabled)
             obj.put("nrSAEnabled", settings.nrSAEnabled)
             obj.put("crossSIMEnabled", settings.crossSIMEnabled)
@@ -193,6 +220,8 @@ class SettingsRepository(private val context: Context) {
             val slotIndex = obj.getInt("slotIndex")
             val settings = SubscriptionSettings(
                 voLTEEnabled = obj.getBoolean("voLTEEnabled"),
+                // optBoolean: files exported by <= 1.3.6 have no such key.
+                persistentVoLTE = obj.optBoolean("persistentVoLTE", false),
                 voNREnabled = obj.getBoolean("voNREnabled"),
                 // optBoolean: files exported by <= 1.3.4 have no such key.
                 nrSAEnabled = obj.optBoolean("nrSAEnabled", false),
@@ -223,6 +252,11 @@ class SettingsRepository(private val context: Context) {
 /** Snapshot of all configurable carrier settings for one SIM subscription. */
 data class SubscriptionSettings(
     val voLTEEnabled: Boolean,
+    /**
+     * VoLTE kept on across reboots through the VoIMS opt-in flag. Not a carrier config key:
+     * it lives in the subscription database and survives restarts on its own.
+     */
+    val persistentVoLTE: Boolean = false,
     val voNREnabled: Boolean,
     /** 5G SA (standalone) present in KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY. */
     val nrSAEnabled: Boolean,
@@ -244,4 +278,10 @@ data class SubscriptionSettings(
     val hideEnhancedDataIconEnabled: Boolean,
     val is4GPlusEnabled: Boolean,
     val userAgent: String,
+)
+
+/** A SIM's VoIMS opt-in and "4G calling" values as found before we changed them; -1 = unset. */
+data class OptInBackup(
+    val optIn: Int,
+    val enhanced4gMode: Int,
 )

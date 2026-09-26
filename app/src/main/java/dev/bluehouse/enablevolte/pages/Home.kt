@@ -104,6 +104,13 @@ fun Home(navController: NavController) {
                     slot,
                     SubscriptionSettings(
                         voLTEEnabled = moder.isVoLteConfigEnabled,
+                        persistentVoLTE =
+                            VERSION.SDK_INT >= VERSION_CODES.S &&
+                                try {
+                                    moder.isVoImsOptInEnabled
+                                } catch (e: Exception) {
+                                    false
+                                },
                         voNREnabled = VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE && moder.isVoNrConfigEnabled,
                         nrSAEnabled = VERSION.SDK_INT >= VERSION_CODES.S && moder.isNRConfigEnabled,
                         crossSIMEnabled = moder.isCrossSIMConfigEnabled,
@@ -179,24 +186,34 @@ fun Home(navController: NavController) {
                     stream.readBytes().toString(Charsets.UTF_8)
                 } ?: return@launch
                 repo.importFromJson(json)
-                // Apply imported settings to every matching subscription
-                withContext(Dispatchers.Default) {
+                // Apply imported settings to every matching subscription, waiting for each
+                // write so the toast reports what actually happened.
+                var failed = 0
+                withContext(Dispatchers.IO) {
                     for (subscription in subscriptions) {
                         try {
                             val moder = SubscriptionModer(context, subscription.subscriptionId)
                             val slot = try { moder.simSlotIndex } catch (e: Exception) { -1 }
                             val imported = if (slot >= 0) repo.loadSlotSettings(slot) else null
                             if (imported != null) {
-                                moder.applyAllSettings(imported)
-                                Log.d(TAG, "Applied imported settings for slot $slot")
+                                val result = moder.applyAllSettings(imported).get()
+                                if (!result.ok) failed++
+                                if (imported.persistentVoLTE && VERSION.SDK_INT >= VERSION_CODES.S &&
+                                    !moder.setPersistentVoLTE(true, repo).get().ok
+                                ) {
+                                    failed++
+                                }
+                                Log.d(TAG, "Applied imported settings for slot $slot: ok=${result.ok} ${result.error ?: ""}")
                             }
                         } catch (e: Exception) {
+                            failed++
                             Log.w(TAG, "Failed to apply settings for sub ${subscription.subscriptionId}", e)
                         }
                     }
                 }
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, context.getString(R.string.settings_imported), Toast.LENGTH_SHORT).show()
+                    val message = if (failed == 0) R.string.settings_imported else R.string.settings_import_partially_failed
+                    Toast.makeText(context, context.getString(message), Toast.LENGTH_SHORT).show()
                 }
             } catch (e: JSONException) {
                 Log.e(TAG, "Import JSON parse error", e)
