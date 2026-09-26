@@ -1,32 +1,41 @@
 package dev.bluehouse.enablevolte
 
-import android.app.IActivityManager
-import android.app.UiAutomationConnection
-import android.content.ComponentName
 import android.content.Context
 import android.content.res.Resources
 import android.os.Build
 import android.os.Build.VERSION_CODES
 import android.os.Bundle
+import android.os.Handler
 import android.os.IInterface
+import android.os.Looper
 import android.telephony.CarrierConfigManager
 import android.telephony.SubscriptionInfo
 import android.telephony.TelephonyFrameworkInitializer
+import android.telephony.ims.ProvisioningManager
 import android.util.Log
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import com.android.internal.telephony.ICarrierConfigLoader
 import com.android.internal.telephony.IPhoneSubInfo
 import com.android.internal.telephony.ISub
 import com.android.internal.telephony.ITelephony
 import rikka.shizuku.ShizukuBinderWrapper
-import rikka.shizuku.SystemServiceHelper
+import java.security.MessageDigest
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.concurrent.Future
 
 object InterfaceCache {
     val cache = HashMap<String, IInterface>()
 }
+
+/** Package name Shizuku calls are attributed to: they run as the shell uid. */
+private const val SHELL_PACKAGE = "com.android.shell"
+
+/** Subscription database columns (SubscriptionManager.VOIMS_OPT_IN_STATUS / ENHANCED_4G_MODE_ENABLED). */
+private const val COLUMN_VOIMS_OPT_IN = "voims_opt_in_status"
+private const val COLUMN_ENHANCED_4G_MODE = "volte_vt_enabled"
 
 /** Values of [CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY]. */
 const val CARRIER_NR_AVAILABILITY_NSA = 1
@@ -145,59 +154,57 @@ class SubscriptionModer(
     @Suppress("ktlint:standard:property-naming")
     private val TAG = "CarrierModer"
 
-    private fun overrideConfigDirectly(bundle: Bundle?) {
-        val iCclInstance = this.loadCachedInterface { carrierConfigLoader }
-        if (bundle != null) {
-            val args = toPersistableBundle(bundle)
-            iCclInstance.overrideConfig(subscriptionId, args, false)
-        } else {
-            iCclInstance.overrideConfig(subscriptionId, null, false)
+    /**
+     * Before the 2025-10 security patch the loader accepted overrideConfig from the shell
+     * uid directly; from then on it has to come from our own uid holding the shell's
+     * permissions, which is what [BrokerInstrumentation] provides.
+     */
+    private val useBroker: Boolean
+        get() {
+            val securityPatchDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(Build.VERSION.SECURITY_PATCH) ?: return false
+            val cal = Calendar.getInstance().apply { time = securityPatchDate }
+            return cal.get(Calendar.YEAR) > 2025 || (cal.get(Calendar.YEAR) == 2025 && cal.get(Calendar.MONTH) >= 9)
+        }
+
+    /** Writes [bundle] (or clears our overrides when null). Runs on the [BrokerQueue] thread. */
+    private fun writeConfigNow(bundle: Bundle?): BrokerResult {
+        if (useBroker) {
+            val args = if (bundle != null) Bundle(bundle) else Bundle().apply { putBoolean(ARG_CLEAR, true) }
+            args.putInt(ARG_SUB_ID, subscriptionId)
+            return BrokerQueue.runBroker(context, args)
+        }
+        return try {
+            val iCclInstance = this.loadCachedInterface { carrierConfigLoader }
+            iCclInstance.overrideConfig(subscriptionId, bundle?.let { toPersistableBundle(it) }, false)
+            BrokerResult.OK
+        } catch (e: Throwable) {
+            Log.e(TAG, "overrideConfig failed", e)
+            BrokerResult(false, "${e.javaClass.simpleName}: ${e.message}")
         }
     }
 
-    private fun overrideConfigUsingBroker(bundle: Bundle?) {
-        val am =
-            IActivityManager.Stub.asInterface(
-                ShizukuBinderWrapper(
-                    SystemServiceHelper.getSystemService(Context.ACTIVITY_SERVICE),
-                ),
-            )
-
-        val arg =
-            bundle ?: run {
-                val empty = Bundle()
-                empty.putBoolean(ARG_CLEAR, true)
-                empty
-            }
-        arg.putInt(ARG_SUB_ID, subscriptionId)
-
-        am.startInstrumentation(
-            ComponentName(context, Class.forName("dev.bluehouse.enablevolte.BrokerInstrumentation")),
-            null,
-            8,
-            arg,
-            null,
-            UiAutomationConnection(),
-            0,
-            null,
-        )
+    private fun resetImsNow() {
+        val telephony = this.loadCachedInterface { telephony }
+        val sub = this.loadCachedInterface { sub }
+        telephony.resetIms(sub.getSlotIndex(this.subscriptionId))
     }
 
-    private fun overrideConfig(bundle: Bundle?) {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-        val cal = Calendar.getInstance()
-        val securityPatchDate = sdf.parse(Build.VERSION.SECURITY_PATCH)
-        if (securityPatchDate == null) {
-            this.overrideConfigDirectly(bundle)
-        } else {
-            cal.time = securityPatchDate
-            if (cal.get(Calendar.YEAR) > 2025 || (cal.get(Calendar.YEAR) == 2025 && cal.get(Calendar.MONTH) >= 9)) {
-                this.overrideConfigUsingBroker(bundle)
-            } else {
-                this.overrideConfigDirectly(bundle)
-            }
+    /** Shows a failed write to the user; the toggle they just flipped did not take effect. */
+    private fun toastIfFailed(result: BrokerResult) {
+        if (result.ok) return
+        Log.w(TAG, "carrier config write failed: ${result.error}")
+        Handler(Looper.getMainLooper()).post {
+            Toast
+                .makeText(
+                    context.applicationContext,
+                    context.getString(R.string.apply_failed, result.error ?: ""),
+                    Toast.LENGTH_LONG,
+                ).show()
         }
     }
+
+    private fun overrideConfig(bundle: Bundle?): Future<BrokerResult> =
+        BrokerQueue.submit { writeConfigNow(bundle).also { toastIfFailed(it) } }
 
     private fun publishBundle(fn: (Bundle) -> Unit) {
         val overrideBundle = Bundle()
@@ -269,9 +276,7 @@ class SubscriptionModer(
         publishBundle { it.putLongArray(key, value) }
     }
 
-    fun clearCarrierConfig() {
-        this.overrideConfig(null)
-    }
+    fun clearCarrierConfig(): Future<BrokerResult> = this.overrideConfig(null)
 
     /**
      * Sets [CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY]. Turning SA off
@@ -283,17 +288,25 @@ class SubscriptionModer(
         this.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY, nrAvailabilities(saEnabled))
     }
 
-    fun restartIMSRegistration() {
-        val telephony = this.loadCachedInterface { telephony }
-        val sub = this.loadCachedInterface { sub }
-        telephony.resetIms(sub.getSlotIndex(this.subscriptionId))
-    }
+    /**
+     * Queued behind any pending carrier config write, so a reset requested right after a
+     * toggle re-registers IMS with the new config rather than the old one.
+     */
+    fun restartIMSRegistration(): Future<Unit> =
+        BrokerQueue.submit {
+            try {
+                resetImsNow()
+            } catch (e: Throwable) {
+                Log.e(TAG, "resetIms failed", e)
+            }
+        }
 
     /**
-     * Applies all settings from [settings] in a single carrier config override call,
-     * then restarts IMS registration. Used by [AutoApplyWorker] when re-applying.
+     * Applies all settings from [settings] in a single carrier config override call and,
+     * once that write is confirmed, restarts IMS registration. The returned future completes
+     * with the write's real outcome; [AutoApplyWorker] retries on failure.
      */
-    fun applyAllSettings(settings: SubscriptionSettings) {
+    fun applyAllSettings(settings: SubscriptionSettings): Future<BrokerResult> {
         Log.d(TAG, "applyAllSettings for subId=$subscriptionId")
         val bundle = Bundle()
 
@@ -341,8 +354,18 @@ class SubscriptionModer(
             bundle.putBoolean(CarrierConfigManager.KEY_HIDE_ENHANCED_4G_LTE_BOOL, !settings.is4GPlusEnabled)
         }
 
-        this.overrideConfig(bundle)
-        this.restartIMSRegistration()
+        return BrokerQueue.submit {
+            val result = writeConfigNow(bundle)
+            if (result.ok) {
+                try {
+                    resetImsNow()
+                } catch (e: Throwable) {
+                    // The config is in place; a failed reset only delays re-registration.
+                    Log.e(TAG, "resetIms after apply failed", e)
+                }
+            }
+            result
+        }
     }
 
     /**
@@ -381,6 +404,125 @@ class SubscriptionModer(
         } catch (e: Throwable) {
             Log.d(TAG, "matchesSettings: could not read config, assuming mismatch", e)
             false
+        }
+
+    // ── Persistent VoLTE (VoIMS opt-in) ──────────────────────────────────────
+    //
+    // Carrier config overrides are held in memory and vanish on reboot. The VoIMS opt-in
+    // flag is not: it is a column of the subscription database, and
+    // ImsManager.isVolteEnabledByPlatform() returns true for it before it even looks at
+    // carrier_volte_available_bool. So with it set, VoLTE is back as soon as the phone
+    // boots, without waiting for Shizuku. It covers VoLTE only; VoNR, VoWiFi and 5G SA
+    // still come from the carrier config overrides.
+
+    private fun rawSubscriptionProperty(column: String): Int? =
+        this
+            .loadCachedInterface { sub }
+            .getSubscriptionProperty(subscriptionId, column, SHELL_PACKAGE, null)
+            ?.toIntOrNull()
+
+    private fun writeSubscriptionProperty(
+        column: String,
+        value: Int,
+    ) {
+        this.loadCachedInterface { sub }.setSubscriptionProperty(subscriptionId, column, value.toString())
+    }
+
+    private fun writeVoImsOptIn(enabled: Boolean) {
+        val value = if (enabled) ProvisioningManager.PROVISIONING_VALUE_ENABLED else ProvisioningManager.PROVISIONING_VALUE_DISABLED
+        val status =
+            this
+                .loadCachedInterface { telephony }
+                .setImsProvisioningInt(subscriptionId, ProvisioningManager.KEY_VOIMS_OPT_IN_STATUS, value)
+        // ImsConfigImplBase.CONFIG_RESULT_SUCCESS; returning without an exception is not enough.
+        check(status == 0) { "setImsProvisioningInt returned $status" }
+    }
+
+    /** Whether VoLTE is kept on across reboots by the VoIMS opt-in flag. */
+    val isVoImsOptInEnabled: Boolean
+        @RequiresApi(VERSION_CODES.S)
+        get() =
+            this
+                .loadCachedInterface { telephony }
+                .getImsProvisioningInt(subscriptionId, ProvisioningManager.KEY_VOIMS_OPT_IN_STATUS) ==
+                ProvisioningManager.PROVISIONING_VALUE_ENABLED
+
+    /** SHA-256 of the ICCID, so a saved backup is never restored onto a different SIM. */
+    private fun simIdentity(): String {
+        val info =
+            this.loadCachedInterface { sub }.getActiveSubscriptionInfo(subscriptionId, SHELL_PACKAGE, null)
+                ?: error("subscription $subscriptionId is not active")
+        val iccId = info.iccId?.takeIf { it.isNotBlank() } ?: error("ICCID unavailable")
+        return MessageDigest
+            .getInstance("SHA-256")
+            .digest(iccId.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    /**
+     * Turns persistent VoLTE on or off for this SIM.
+     *
+     * On: remembers the SIM's original opt-in and "4G calling" values (once, per ICCID),
+     * sets the opt-in and switches the user-facing VoLTE setting on — the opt-in alone
+     * leaves VoLTE off if that switch is off.
+     * Off: clears the opt-in (back to "follow the carrier" if that is how it started) and
+     * restores the original "4G calling" switch.
+     */
+    fun setPersistentVoLTE(
+        enabled: Boolean,
+        repo: SettingsRepository,
+    ): Future<BrokerResult> =
+        BrokerQueue.submit {
+            try {
+                val identity = simIdentity()
+                if (enabled) {
+                    if (repo.loadOptInBackup(identity) == null) {
+                        repo.saveOptInBackup(
+                            identity,
+                            OptInBackup(
+                                optIn = rawSubscriptionProperty(COLUMN_VOIMS_OPT_IN) ?: -1,
+                                enhanced4gMode = rawSubscriptionProperty(COLUMN_ENHANCED_4G_MODE) ?: -1,
+                            ),
+                        )
+                    }
+                    writeVoImsOptIn(true)
+                    this.loadCachedInterface { telephony }.setAdvancedCallingSettingEnabled(subscriptionId, true)
+                } else {
+                    val backup = repo.loadOptInBackup(identity)
+                    writeVoImsOptIn(false)
+                    // The provisioning call only takes 0/1; "-1, follow the carrier" has to
+                    // be written straight to the subscription database afterwards.
+                    if (backup?.optIn == -1) writeSubscriptionProperty(COLUMN_VOIMS_OPT_IN, -1)
+                    backup?.let { writeSubscriptionProperty(COLUMN_ENHANCED_4G_MODE, it.enhanced4gMode) }
+                    repo.clearOptInBackup(identity)
+                }
+                check(isVoImsOptInEnabled == enabled) { "VoIMS opt-in did not change" }
+                BrokerResult.OK
+            } catch (e: Throwable) {
+                Log.e(TAG, "setPersistentVoLTE($enabled) failed", e)
+                BrokerResult(false, "${e.javaClass.simpleName}: ${e.message}")
+            }.also { toastIfFailed(it) }
+        }
+
+    /**
+     * Puts the opt-in and "4G calling" values back exactly as they were before this app
+     * first touched them. Does nothing for a SIM we never changed, so it never undoes an
+     * opt-in another tool (or the carrier) set.
+     */
+    fun restorePersistentVoLTE(repo: SettingsRepository): Future<BrokerResult> =
+        BrokerQueue.submit {
+            try {
+                val identity = simIdentity()
+                val backup = repo.loadOptInBackup(identity) ?: return@submit BrokerResult.OK
+                writeVoImsOptIn(backup.optIn == ProvisioningManager.PROVISIONING_VALUE_ENABLED)
+                if (backup.optIn == -1) writeSubscriptionProperty(COLUMN_VOIMS_OPT_IN, -1)
+                writeSubscriptionProperty(COLUMN_ENHANCED_4G_MODE, backup.enhanced4gMode)
+                repo.clearOptInBackup(identity)
+                BrokerResult.OK
+            } catch (e: Throwable) {
+                Log.e(TAG, "restorePersistentVoLTE failed", e)
+                BrokerResult(false, "${e.javaClass.simpleName}: ${e.message}")
+            }.also { toastIfFailed(it) }
         }
 
     fun getStringValue(key: String): String? {

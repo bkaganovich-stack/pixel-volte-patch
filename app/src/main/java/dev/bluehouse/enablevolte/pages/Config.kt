@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import dev.bluehouse.enablevolte.CarrierModer
 import dev.bluehouse.enablevolte.R
@@ -63,6 +66,7 @@ fun Config(
     val cannotFindKeyText = stringResource(R.string.cannot_find_key)
     var configurable by rememberSaveable { mutableStateOf(false) }
     var voLTEEnabled by rememberSaveable { mutableStateOf(false) }
+    var persistentVoLTE by rememberSaveable { mutableStateOf(false) }
     var voNREnabled by rememberSaveable { mutableStateOf(false) }
     var nrSAEnabled by rememberSaveable { mutableStateOf(false) }
     var crossSIMEnabled by rememberSaveable { mutableStateOf(false) }
@@ -97,6 +101,7 @@ fun Config(
             simSlotIndex,
             SubscriptionSettings(
                 voLTEEnabled = voLTEEnabled,
+                persistentVoLTE = persistentVoLTE,
                 voNREnabled = voNREnabled,
                 nrSAEnabled = nrSAEnabled,
                 crossSIMEnabled = crossSIMEnabled,
@@ -135,6 +140,14 @@ fun Config(
                 .associate { field -> field.name to field.get(field) as String }
         reversedConfigurableItems = configurableItems.entries.associate { (k, v) -> v to k }
         voLTEEnabled = moder.isVoLteConfigEnabled
+        persistentVoLTE =
+            VERSION.SDK_INT >= VERSION_CODES.S &&
+            try {
+                moder.isVoImsOptInEnabled
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not read VoIMS opt-in", e)
+                false
+            }
         voNREnabled = VERSION.SDK_INT >= VERSION_CODES.UPSIDE_DOWN_CAKE && moder.isVoNrConfigEnabled
         nrSAEnabled = VERSION.SDK_INT >= VERSION_CODES.S && moder.isNRConfigEnabled
         crossSIMEnabled = moder.isCrossSIMConfigEnabled
@@ -206,6 +219,36 @@ fun Config(
                     }
                 saveCurrentSettings()
             }
+
+            BooleanPropertyView(
+                label = stringResource(R.string.persistent_volte),
+                toggled = persistentVoLTE,
+                minSdk = VERSION_CODES.S,
+            ) {
+                if (VERSION.SDK_INT >= VERSION_CODES.S) {
+                    val target = !persistentVoLTE
+                    persistentVoLTE = target
+                    scope.launch(Dispatchers.IO) {
+                        moder.setPersistentVoLTE(target, repo).get()
+                        // Show what the system actually holds now, whether or not it worked.
+                        val actual =
+                            try {
+                                moder.isVoImsOptInEnabled
+                            } catch (e: Exception) {
+                                target
+                            }
+                        withContext(Dispatchers.Main) {
+                            persistentVoLTE = actual
+                            saveCurrentSettings()
+                        }
+                    }
+                }
+            }
+            Text(
+                text = stringResource(R.string.persistent_volte_hint),
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.outline,
+            )
 
             BooleanPropertyView(
                 label = stringResource(R.string.enable_vonr),
@@ -612,9 +655,13 @@ fun Config(
                 label = stringResource(R.string.reset_all_settings),
                 value = stringResource(R.string.reverts_to_carrier_default),
             ) {
-                moder.clearCarrierConfig()
+                val cleared = moder.clearCarrierConfig()
+                val restored = moder.restorePersistentVoLTE(repo)
                 scope.launch {
-                    withContext(Dispatchers.Default) {
+                    withContext(Dispatchers.IO) {
+                        // Wait for both: re-reading earlier would show the old values.
+                        cleared.get()
+                        restored.get()
                         loadFlags()
                     }
                 }

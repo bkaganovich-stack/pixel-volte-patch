@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.app.IActivityManager
 import android.app.Instrumentation
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.system.Os
+import android.os.PersistableBundle
 import android.telephony.CarrierConfigManager
 import android.util.Log
 import rikka.shizuku.ShizukuBinderWrapper
@@ -63,7 +65,14 @@ class BrokerInstrumentation : Instrumentation() {
 
             BootLog.append(context, TAG, "calling overrideConfig(subId=$subId, persistent=false), keys=${overrideValues.keySet().size}")
             configurationManager.overrideConfig(subId, overrideValues, false)
-            BootLog.append(context, TAG, "overrideConfig returned OK")
+
+            // overrideConfig returning is not proof: the loader applies it on its own handler
+            // and can drop keys it refuses on user builds. Read the values back.
+            val mismatched = mismatchedKeys(configurationManager, subId, overrideValues)
+            if (mismatched.isNotEmpty()) {
+                throw IllegalStateException("carrier config did not take: ${mismatched.joinToString()}")
+            }
+            BootLog.append(context, TAG, "overrideConfig verified")
         } catch (e: Exception) {
             Log.e(TAG, "overrideConfig failed", e)
             BootLog.appendError(context, TAG, "overrideConfig FAILED", e)
@@ -73,6 +82,45 @@ class BrokerInstrumentation : Instrumentation() {
             releaseShellPermissions(am, uid)
         }
     }
+
+    /**
+     * Keys whose live value differs from what we just wrote. The read is retried briefly
+     * because the loader applies the override asynchronously on its own thread.
+     */
+    @SuppressLint("MissingPermission")
+    private fun mismatchedKeys(
+        configurationManager: CarrierConfigManager,
+        subId: Int,
+        expected: PersistableBundle,
+    ): List<String> {
+        val keys = expected.keySet().toList()
+        var mismatched = keys
+        repeat(VERIFY_ATTEMPTS) { attempt ->
+            val live =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                    configurationManager.getConfigForSubId(subId, *keys.toTypedArray())
+                } else {
+                    configurationManager.getConfigForSubId(subId)
+                }
+            mismatched = keys.filterNot { valuesEqual(expected.get(it), live?.get(it)) }
+            if (mismatched.isEmpty()) return mismatched
+            if (attempt < VERIFY_ATTEMPTS - 1) Thread.sleep(VERIFY_DELAY_MS)
+        }
+        return mismatched
+    }
+
+    private fun valuesEqual(
+        a: Any?,
+        b: Any?,
+    ): Boolean =
+        when {
+            a is IntArray && b is IntArray -> a.contentEquals(b)
+            a is LongArray && b is LongArray -> a.contentEquals(b)
+            a is BooleanArray && b is BooleanArray -> a.contentEquals(b)
+            a is DoubleArray && b is DoubleArray -> a.contentEquals(b)
+            a is Array<*> && b is Array<*> -> a.contentEquals(b)
+            else -> a == b
+        }
 
     @SuppressLint("MissingPermission")
     private fun clearConfig(subId: Int) {
@@ -101,6 +149,8 @@ class BrokerInstrumentation : Instrumentation() {
 
         if (arguments == null) {
             BootLog.append(context, TAG, "onCreate: arguments=null, skipping")
+            // Still finish: BrokerQueue is waiting on the watcher for this instrumentation.
+            finish(0, Bundle().apply { putString(RESULT_ERROR, "no arguments") })
             return
         }
 
@@ -108,6 +158,17 @@ class BrokerInstrumentation : Instrumentation() {
         val subId = arguments.getInt(ARG_SUB_ID)
         BootLog.append(context, TAG, "onCreate: subId=$subId clear=$clear")
 
+        // Off the main thread: verification polls, and this process's main thread is the
+        // app's UI thread. The result travels back to BrokerQueue through the watcher.
+        Thread({ perform(subId, clear, arguments) }, "PixelIMS-broker-work").start()
+    }
+
+    private fun perform(
+        subId: Int,
+        clear: Boolean,
+        arguments: Bundle,
+    ) {
+        val results = Bundle()
         // Catches Throwable, not Exception: this instrumentation runs inside the app's
         // own process (INSTR_FLAG_INSTRUMENT_WITHOUT_RESTART), so an escaping Error —
         // e.g. a NoSuchMethodError from a hidden API that changed shape in a platform
@@ -118,11 +179,19 @@ class BrokerInstrumentation : Instrumentation() {
             } else {
                 this.applyConfig(subId, arguments)
             }
+            results.putBoolean(RESULT_OK, true)
         } catch (e: Throwable) {
-            BootLog.appendError(context, TAG, "onCreate FAILED", e)
+            BootLog.appendError(context, TAG, "broker FAILED", e)
+            results.putBoolean(RESULT_OK, false)
+            results.putString(RESULT_ERROR, "${e.javaClass.simpleName}: ${e.message}")
         } finally {
-            BootLog.append(context, TAG, "finish()")
-            finish(0, Bundle())
+            BootLog.append(context, TAG, "finish(ok=${results.getBoolean(RESULT_OK)})")
+            finish(0, results)
         }
+    }
+
+    private companion object {
+        const val VERIFY_ATTEMPTS = 5
+        const val VERIFY_DELAY_MS = 200L
     }
 }

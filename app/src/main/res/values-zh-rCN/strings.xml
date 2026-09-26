@@ -81,4 +81,8 @@
     <string name="add_toggle_tile">添加 VoLTE 开关图块</string>
     <string name="sim_config">SIM 配置</string>
     <string name="config_dump_viewer">配置转储查看器</string>
+    <string name="persistent_volte">重启后保持 VoLTE 开启</string>
+    <string name="persistent_volte_hint">由 Android 系统自身保存，重启后无需等待 Shizuku 即可使用 VoLTE。仅适用于 VoLTE：VoNR、WLAN 通话和 5G SA 会在 Shizuku 启动后重新应用。</string>
+    <string name="apply_failed">无法应用设置：%1$s</string>
+    <string name="settings_import_partially_failed">设置已导入，但部分设置未能应用</string>
 </resources>

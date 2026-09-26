@@ -111,4 +111,8 @@
     <string name="notification_channel_name">Auto-apply service</string>
     <string name="notification_channel_description">Applies saved IMS settings after device reboot</string>
     <string name="notification_applying_settings">Applying IMS settings…</string>
+    <string name="persistent_volte">Keep VoLTE on after reboot</string>
+    <string name="persistent_volte_hint">Stored by Android itself, so VoLTE works right after a restart without waiting for Shizuku. Covers VoLTE only: VoNR, Wi-Fi calling and 5G SA are re-applied when Shizuku starts.</string>
+    <string name="apply_failed">Could not apply the setting: %1$s</string>
+    <string name="settings_import_partially_failed">Settings imported, but some could not be applied</string>
 </resources>

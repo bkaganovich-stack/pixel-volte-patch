@@ -81,4 +81,8 @@
   <string name="add_toggle_tile">VoLTE 設定の切り替えタイルを追加する</string>
   <string name="sim_config">SIM の設定</string>
   <string name="config_dump_viewer">設定ダンプビューワー</string>
+  <string name="persistent_volte">再起動後も VoLTE を維持</string>
+  <string name="persistent_volte_hint">Android 自体に保存されるため、再起動直後から Shizuku を待たずに VoLTE が使えます。対象は VoLTE のみです。VoNR、Wi-Fi 通話、5G SA は Shizuku の起動時に再適用されます。</string>
+  <string name="apply_failed">設定を適用できませんでした: %1$s</string>
+  <string name="settings_import_partially_failed">設定をインポートしましたが、一部を適用できませんでした</string>
 </resources>
