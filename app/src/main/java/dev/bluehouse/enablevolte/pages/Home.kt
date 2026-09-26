@@ -14,7 +14,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -317,7 +316,8 @@ fun Home(navController: NavController) {
                         conflict.appliesAutomatically -> R.string.conflict_automatic
                         else -> R.string.conflict_manual
                     }
-                ClickablePropertyView(label = conflict.label, value = stringResource(description)) {
+                // The label alone can be as vague as "Ims"; the package name says which app it is.
+                ClickablePropertyView(label = "${conflict.label} (${conflict.packageName})", value = stringResource(description)) {
                     context.startActivity(
                         Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${conflict.packageName}".toUri()),
                     )
@@ -373,16 +373,15 @@ fun Home(navController: NavController) {
                 Text(stringResource(R.string.boot_log_clear))
             }
         }
-        // Scrollable monospace log text
-        val hScroll = rememberScrollState()
+        // Wrapped rather than scrolled sideways: the message is the part that matters, and
+        // with horizontal scrolling it sat off-screen behind the timestamp and tag.
         Text(
             text = bootLogText,
             fontFamily = FontFamily.Monospace,
             fontSize = 11.sp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = Dp(4f))
-                .horizontalScroll(hScroll),
+                .padding(horizontal = Dp(4f)),
         )
     }
 }

@@ -49,6 +49,16 @@ object FiveGDiagnostics {
             ims(context, moder),
         )
 
+    /**
+     * A warning among the phone-side checks (everything before the registration result),
+     * e.g. this not being the data SIM: nothing blocks 5G outright, but it may still not
+     * be used.
+     */
+    fun hasSetupWarnings(checks: List<DiagnosticCheck>): Boolean = checks.take(SETUP_CHECKS).any { it.status == CheckStatus.WARN }
+
+    /** Checks in [run] that describe the phone setup; the rest report what the network did. */
+    private const val SETUP_CHECKS = 5
+
     /** The first check that blocks 5G, or null when nothing does. */
     fun blocker(checks: List<DiagnosticCheck>): DiagnosticCheck? = checks.firstOrNull { it.status == CheckStatus.FAIL }
 
@@ -181,16 +191,46 @@ object FiveGDiagnostics {
         }
     }
 
-    /** " (band n79)" when the cell identity is readable, empty otherwise. */
+    /**
+     * " (n79)" / " (B3)" for the serving cell, empty when it cannot be read.
+     *
+     * The modem's band list is not just the serving band: on this Pixel it reads e.g.
+     * [1, 38, 3] with the aggregated bands after the primary. The channel number is
+     * unambiguous, so it wins; the list's first entry is the fallback.
+     */
     private fun bandOf(info: NetworkRegistrationInfo): String {
-        val bands =
+        val band =
             when (val cell = info.cellIdentity) {
-                is CellIdentityNr -> cell.bands.map { "n$it" }
-                is CellIdentityLte -> cell.bands.map { "B$it" }
-                else -> emptyList()
+                is CellIdentityNr -> (nrBand(cell.nrarfcn) ?: cell.bands.firstOrNull())?.let { "n$it" }
+                is CellIdentityLte -> (lteBand(cell.earfcn) ?: cell.bands.firstOrNull())?.let { "B$it" }
+                else -> null
             }
-        return if (bands.isEmpty()) "" else " (${bands.joinToString("/")})"
+        return band?.let { " ($it)" } ?: ""
     }
+
+    /** LTE downlink EARFCN ranges (3GPP TS 36.101), for the bands seen in practice. */
+    private val LTE_BANDS =
+        listOf(
+            1 to 0..599, 2 to 600..1199, 3 to 1200..1949, 4 to 1950..2399, 5 to 2400..2649,
+            7 to 2750..3449, 8 to 3450..3799, 12 to 5010..5179, 13 to 5180..5279, 17 to 5730..5849,
+            20 to 6150..6449, 25 to 8040..8689, 26 to 8690..9039, 28 to 9210..9659, 32 to 9920..10359,
+            38 to 37750..38249, 39 to 38250..38649, 40 to 38650..39649, 41 to 39650..41589,
+            42 to 41590..43589, 43 to 43590..45589, 66 to 66436..67335, 71 to 68586..68935,
+        )
+
+    private fun lteBand(earfcn: Int): Int? = LTE_BANDS.firstOrNull { earfcn in it.second }?.first
+
+    /**
+     * NR-ARFCN ranges (3GPP TS 38.101-1). Only bands whose range does not overlap another
+     * band are resolved here (n77/n78, n20/n28, n1/n66 and n7/n38/n41 overlap), so the rest
+     * fall back to the modem's own band list. n79 — the Russian SA layer — is unambiguous.
+     */
+    private val NR_BANDS =
+        listOf(
+            3 to 361000..376000, 8 to 185000..192000, 40 to 460000..480000, 79 to 693334..733333,
+        )
+
+    private fun nrBand(arfcn: Int): Int? = NR_BANDS.firstOrNull { arfcn in it.second }?.first
 
     private fun ims(
         context: Context,

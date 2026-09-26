@@ -7,8 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,22 +54,27 @@ fun RadioSelectPropertyUpdateDialog(
             color = MaterialTheme.colorScheme.surface,
         ) {
             Column(modifier = Modifier.padding(all = 16.dp).fillMaxWidth()) {
+                // The setting's own name says what is being picked; "Update Value" did not.
                 Text(
-                    text = stringResource(R.string.update_value),
+                    text = label,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 24.dp),
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
-                values.forEachIndexed { index, s ->
-                    // Whole row selects, so tapping the text works as well as the button.
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .selectable(selected = newIndex == index, role = Role.RadioButton, onClick = { newIndex = index }),
-                    ) {
-                        RadioButton(selected = newIndex == index, onClick = null)
-                        Text(s, modifier = Modifier.padding(start = 8.dp))
+                // Scrolls on its own so a long list never pushes the buttons off-screen.
+                Column(modifier = Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                    values.forEachIndexed { index, s ->
+                        // Whole row selects, so tapping the text works as well as the button.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .selectable(selected = newIndex == index, role = Role.RadioButton, onClick = { newIndex = index })
+                                    .padding(vertical = 6.dp),
+                        ) {
+                            RadioButton(selected = newIndex == index, onClick = null)
+                            Text(s, modifier = Modifier.padding(start = 12.dp))
+                        }
                     }
                 }
                 Row(modifier = Modifier.align(Alignment.End).padding(top = 16.dp)) {

@@ -133,4 +133,5 @@
     <string name="conflict_active">它的设置当前正在你的 SIM 卡上生效，并且每次 Shizuku 启动时都会重新应用。点按可打开应用信息。</string>
     <string name="conflict_automatic">会自行重新应用自己的运营商设置，因此重启后可能覆盖你的设置。点按可打开应用信息。</string>
     <string name="conflict_manual">仅在你使用时修改运营商设置。点按可打开应用信息。</string>
+    <string name="diag_verdict_warnings">没有直接阻止 5G 的设置，但请查看下面的警告。</string>
 </resources>

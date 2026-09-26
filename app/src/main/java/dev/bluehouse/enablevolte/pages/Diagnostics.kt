@@ -112,10 +112,10 @@ fun Diagnostics(subId: Int) {
         val blocker = FiveGDiagnostics.blocker(current)
         Text(
             text =
-                if (blocker != null) {
-                    stringResource(R.string.diag_verdict_blocked, blocker.title)
-                } else {
-                    stringResource(R.string.diag_verdict_clear)
+                when {
+                    blocker != null -> stringResource(R.string.diag_verdict_blocked, blocker.title)
+                    FiveGDiagnostics.hasSetupWarnings(current) -> stringResource(R.string.diag_verdict_warnings)
+                    else -> stringResource(R.string.diag_verdict_clear)
                 },
             fontSize = 16.sp,
             modifier = Modifier.padding(bottom = 8.dp),

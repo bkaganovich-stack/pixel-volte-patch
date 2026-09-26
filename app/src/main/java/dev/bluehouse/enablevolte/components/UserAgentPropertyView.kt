@@ -36,6 +36,7 @@ import dev.bluehouse.enablevolte.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserAgentUpdateDialog(
+    title: String,
     labels: Array<String>,
     values: Array<String>,
     selectedIndex: Int,
@@ -58,9 +59,9 @@ fun UserAgentUpdateDialog(
         ) {
             Column(modifier = Modifier.padding(all = 16.dp)) {
                 Text(
-                    text = stringResource(R.string.update_value),
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(bottom = 24.dp),
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
                 ExposedDropdownMenuBox(
                     expanded = dropdownExpanded,
@@ -144,6 +145,7 @@ fun UserAgentPropertyView(
     if (onUpdate != null) {
         if (openTextEditDialog) {
             UserAgentUpdateDialog(
+                label,
                 labels,
                 values,
                 selectedIndex,
@@ -181,6 +183,7 @@ fun UserAgentUpdateDialogPreview() {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
     UserAgentUpdateDialog(
+        "Lorem Ipsum",
         labels,
         values,
         selectedIndex,
