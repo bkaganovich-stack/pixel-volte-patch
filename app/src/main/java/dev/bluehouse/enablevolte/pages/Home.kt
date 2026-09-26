@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Build.VERSION
 import android.os.Build.VERSION_CODES
+import android.provider.Settings
 import android.telephony.SubscriptionInfo
 import android.util.Log
 import android.widget.Toast
@@ -20,12 +21,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -40,6 +43,7 @@ import androidx.navigation.NavController
 import dev.bluehouse.enablevolte.BootLog
 import dev.bluehouse.enablevolte.BuildConfig
 import dev.bluehouse.enablevolte.CarrierModer
+import dev.bluehouse.enablevolte.ConflictDetector
 import dev.bluehouse.enablevolte.R
 import dev.bluehouse.enablevolte.SettingsRepository
 import dev.bluehouse.enablevolte.ShizukuStatus
@@ -76,9 +80,10 @@ fun Home(navController: NavController) {
     var subscriptions by rememberSaveable { mutableStateOf(listOf<SubscriptionInfo>()) }
     var deviceIMSEnabled by rememberSaveable { mutableStateOf(false) }
     var autoApplyEnabled by rememberSaveable { mutableStateOf(repo.autoApplyEnabled) }
-    var bootLogText by rememberSaveable { mutableStateOf(BootLog.read(context)) }
+    var bootLogText by rememberSaveable { mutableStateOf(BootLog.readNewestFirst(context)) }
 
     var isIMSRegistered by rememberSaveable { mutableStateOf(listOf<Boolean>()) }
+    var conflicts by remember { mutableStateOf(listOf<ConflictDetector.Conflict>()) }
     var newerVersion by rememberSaveable { mutableStateOf("") }
 
     fun loadFlags() {
@@ -235,6 +240,8 @@ fun Home(navController: NavController) {
                 ShizukuStatus.GRANTED -> {
                     shizukuEnabled = true
                     loadFlags()
+                    val subIds = subscriptions.map { it.subscriptionId }
+                    conflicts = withContext(Dispatchers.IO) { ConflictDetector.detect(context, subIds) }
                 }
                 ShizukuStatus.NOT_GRANTED -> {
                     shizukuEnabled = true
@@ -296,6 +303,28 @@ fun Home(navController: NavController) {
             )
         }
 
+        if (conflicts.isNotEmpty()) {
+            HeaderText(text = stringResource(R.string.conflicts_header))
+            Text(
+                text = stringResource(R.string.conflicts_intro),
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.outline,
+            )
+            for (conflict in conflicts) {
+                val description =
+                    when {
+                        conflict.activeOnSubscriptions.isNotEmpty() -> R.string.conflict_active
+                        conflict.appliesAutomatically -> R.string.conflict_automatic
+                        else -> R.string.conflict_manual
+                    }
+                ClickablePropertyView(label = conflict.label, value = stringResource(description)) {
+                    context.startActivity(
+                        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${conflict.packageName}".toUri()),
+                    )
+                }
+            }
+        }
+
         HeaderText(text = stringResource(R.string.automation))
         BooleanPropertyView(
             label = stringResource(R.string.auto_apply_on_reboot),
@@ -326,7 +355,7 @@ fun Home(navController: NavController) {
         HeaderText(text = stringResource(R.string.boot_log_section))
         // Toolbar: Refresh / Copy / Clear
         Row(modifier = Modifier.fillMaxWidth()) {
-            TextButton(onClick = { bootLogText = BootLog.read(context) }) {
+            TextButton(onClick = { bootLogText = BootLog.readNewestFirst(context) }) {
                 Text(stringResource(R.string.boot_log_refresh))
             }
             TextButton(onClick = {
@@ -338,7 +367,7 @@ fun Home(navController: NavController) {
             }
             TextButton(onClick = {
                 BootLog.clear(context)
-                bootLogText = BootLog.read(context)
+                bootLogText = BootLog.readNewestFirst(context)
                 Toast.makeText(context, context.getString(R.string.boot_log_cleared), Toast.LENGTH_SHORT).show()
             }) {
                 Text(stringResource(R.string.boot_log_clear))

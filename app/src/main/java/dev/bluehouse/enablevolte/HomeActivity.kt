@@ -48,6 +48,7 @@ import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import dev.bluehouse.enablevolte.components.OnLifecycleEvent
 import dev.bluehouse.enablevolte.pages.Config
+import dev.bluehouse.enablevolte.pages.Diagnostics
 import dev.bluehouse.enablevolte.pages.DumpedConfig
 import dev.bluehouse.enablevolte.pages.Editor
 import dev.bluehouse.enablevolte.pages.Home
@@ -124,6 +125,9 @@ fun PixelIMSApp() {
                     }
                     composable("config${subscription.subscriptionId}/edit", context.resources.getString(R.string.expert_mode)) {
                         Editor(subscription.subscriptionId)
+                    }
+                    composable("config${subscription.subscriptionId}/diagnostics", context.resources.getString(R.string.diag_screen_title)) {
+                        Diagnostics(subscription.subscriptionId)
                     }
                 }
             }

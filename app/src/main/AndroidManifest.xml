@@ -12,6 +12,16 @@
     <instrumentation
         android:name="dev.bluehouse.enablevolte.BrokerInstrumentation"
         android:targetPackage="dev.bluehouse.enablevolte"/>
+
+    <!-- Other IMS tools, detected so we can warn about them (see ConflictDetector). -->
+    <queries>
+        <package android:name="io.github.vvb2060.ims" />
+        <package android:name="com.takaisaisei.pixelims" />
+        <package android:name="com.nirmala.pixel5gims" />
+        <package android:name="me.ikirby.pixelutils" />
+        <package android:name="com.svenuks.imsforpixel" />
+    </queries>
+
     <application
         android:name=".PixelImsApplication"
         android:allowBackup="true"

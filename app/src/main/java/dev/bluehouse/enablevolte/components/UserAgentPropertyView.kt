@@ -43,6 +43,7 @@ fun UserAgentUpdateDialog(
     dropdownExpanded: Boolean,
     onTextUpdate: (String) -> Unit,
     onIndexUpdate: (Int) -> Unit,
+    onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
     onExpandedChange: (Boolean) -> Unit,
 ) {
@@ -73,7 +74,7 @@ fun UserAgentUpdateDialog(
                                 .menuAnchor()
                                 .wrapContentWidth(),
                         readOnly = true,
-                        value = if (values[selectedIndex] == typedText) labels[selectedIndex] else "Custom",
+                        value = if (values[selectedIndex] == typedText) labels[selectedIndex] else stringResource(R.string.custom),
                         onValueChange = {},
                         label = { Text(stringResource(R.string.presets)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
@@ -114,7 +115,7 @@ fun UserAgentUpdateDialog(
                                 containerColor = MaterialTheme.colorScheme.primary,
                             ),
                         onClick = {
-                            onTextUpdate(typedText)
+                            onConfirm()
                             onDismissRequest()
                         },
                     ) {
@@ -148,13 +149,13 @@ fun UserAgentPropertyView(
                 selectedIndex,
                 typedText,
                 dropdownExpanded,
-                onTextUpdate = {
-                    typedText = it
-                    onUpdate(typedText)
-                },
+                // Only Confirm writes. Writing on every keystroke sent a carrier config
+                // override per character typed, and Dismiss could not undo any of them.
+                onTextUpdate = { typedText = it },
                 onIndexUpdate = {
                     selectedIndex = it
                 },
+                onConfirm = { onUpdate(typedText) },
                 onDismissRequest = { openTextEditDialog = false },
                 onExpandedChange = { dropdownExpanded = it },
             )
@@ -191,6 +192,7 @@ fun UserAgentUpdateDialogPreview() {
         onIndexUpdate = {
             selectedIndex = it
         },
+        onConfirm = {},
         onDismissRequest = { openTextEditDialog = false },
         onExpandedChange = { dropdownExpanded = it },
     )
