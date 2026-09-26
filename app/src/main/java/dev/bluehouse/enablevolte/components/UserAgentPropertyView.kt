@@ -36,6 +36,7 @@ import dev.bluehouse.enablevolte.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserAgentUpdateDialog(
+    title: String,
     labels: Array<String>,
     values: Array<String>,
     selectedIndex: Int,
@@ -43,6 +44,7 @@ fun UserAgentUpdateDialog(
     dropdownExpanded: Boolean,
     onTextUpdate: (String) -> Unit,
     onIndexUpdate: (Int) -> Unit,
+    onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
     onExpandedChange: (Boolean) -> Unit,
 ) {
@@ -57,9 +59,9 @@ fun UserAgentUpdateDialog(
         ) {
             Column(modifier = Modifier.padding(all = 16.dp)) {
                 Text(
-                    text = stringResource(R.string.update_value),
-                    style = MaterialTheme.typography.labelMedium,
-                    modifier = Modifier.padding(bottom = 24.dp),
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(bottom = 16.dp),
                 )
                 ExposedDropdownMenuBox(
                     expanded = dropdownExpanded,
@@ -73,7 +75,7 @@ fun UserAgentUpdateDialog(
                                 .menuAnchor()
                                 .wrapContentWidth(),
                         readOnly = true,
-                        value = if (values[selectedIndex] == typedText) labels[selectedIndex] else "Custom",
+                        value = if (values[selectedIndex] == typedText) labels[selectedIndex] else stringResource(R.string.custom),
                         onValueChange = {},
                         label = { Text(stringResource(R.string.presets)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = dropdownExpanded) },
@@ -114,7 +116,7 @@ fun UserAgentUpdateDialog(
                                 containerColor = MaterialTheme.colorScheme.primary,
                             ),
                         onClick = {
-                            onTextUpdate(typedText)
+                            onConfirm()
                             onDismissRequest()
                         },
                     ) {
@@ -143,18 +145,19 @@ fun UserAgentPropertyView(
     if (onUpdate != null) {
         if (openTextEditDialog) {
             UserAgentUpdateDialog(
+                label,
                 labels,
                 values,
                 selectedIndex,
                 typedText,
                 dropdownExpanded,
-                onTextUpdate = {
-                    typedText = it
-                    onUpdate(typedText)
-                },
+                // Only Confirm writes. Writing on every keystroke sent a carrier config
+                // override per character typed, and Dismiss could not undo any of them.
+                onTextUpdate = { typedText = it },
                 onIndexUpdate = {
                     selectedIndex = it
                 },
+                onConfirm = { onUpdate(typedText) },
                 onDismissRequest = { openTextEditDialog = false },
                 onExpandedChange = { dropdownExpanded = it },
             )
@@ -180,6 +183,7 @@ fun UserAgentUpdateDialogPreview() {
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
 
     UserAgentUpdateDialog(
+        "Lorem Ipsum",
         labels,
         values,
         selectedIndex,
@@ -191,6 +195,7 @@ fun UserAgentUpdateDialogPreview() {
         onIndexUpdate = {
             selectedIndex = it
         },
+        onConfirm = {},
         onDismissRequest = { openTextEditDialog = false },
         onExpandedChange = { dropdownExpanded = it },
     )

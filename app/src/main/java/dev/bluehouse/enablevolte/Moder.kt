@@ -9,6 +9,7 @@ import android.os.Handler
 import android.os.IInterface
 import android.os.Looper
 import android.telephony.CarrierConfigManager
+import android.telephony.ServiceState
 import android.telephony.SubscriptionInfo
 import android.telephony.TelephonyFrameworkInitializer
 import android.telephony.ims.ProvisioningManager
@@ -405,6 +406,66 @@ class SubscriptionModer(
             Log.d(TAG, "matchesSettings: could not read config, assuming mismatch", e)
             false
         }
+
+    // ── Radio state, read for the 5G diagnostics ─────────────────────────────
+    // Each returns null when the platform refuses or lacks the call, so one missing
+    // piece of information degrades a single check rather than the whole screen.
+
+    /** Network types allowed for [reason] (TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_*). */
+    fun allowedNetworkTypes(reason: Int): Long? =
+        try {
+            this.loadCachedInterface { telephony }.getAllowedNetworkTypesForReason(subscriptionId, reason)
+        } catch (e: Throwable) {
+            Log.w(TAG, "getAllowedNetworkTypesForReason($reason) failed", e)
+            null
+        }
+
+    /** Radio access family the modem reports for this SIM's slot (network-type bitmask). */
+    val radioAccessFamily: Int?
+        get() =
+            try {
+                this.loadCachedInterface { telephony }.getRadioAccessFamily(simSlotIndex, SHELL_PACKAGE)
+            } catch (e: Throwable) {
+                Log.w(TAG, "getRadioAccessFamily failed", e)
+                null
+            }
+
+    /**
+     * Current service state. Asked for with location included, because the serving cell's
+     * band lives in the cell identity; falls back to the location-free state if refused.
+     */
+    val serviceState: ServiceState?
+        get() {
+            val telephony = this.loadCachedInterface { telephony }
+            val slot = simSlotIndex
+            return try {
+                telephony.getServiceStateForSlot(slot, false, false, SHELL_PACKAGE, null)
+            } catch (e: Throwable) {
+                try {
+                    telephony.getServiceStateForSlot(slot, true, true, SHELL_PACKAGE, null)
+                } catch (e2: Throwable) {
+                    Log.w(TAG, "getServiceStateForSlot failed", e2)
+                    null
+                }
+            }
+        }
+
+    val isDefaultDataSubscription: Boolean?
+        get() =
+            try {
+                this.loadCachedInterface { sub }.defaultDataSubId == subscriptionId
+            } catch (e: Throwable) {
+                null
+            }
+
+    /** ImsRegistrationImplBase.REGISTRATION_TECH_*, or null when unknown. */
+    val imsRegistrationTech: Int?
+        get() =
+            try {
+                this.loadCachedInterface { telephony }.getImsRegTechnologyForMmTel(subscriptionId)
+            } catch (e: Throwable) {
+                null
+            }
 
     // ── Persistent VoLTE (VoIMS opt-in) ──────────────────────────────────────
     //

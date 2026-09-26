@@ -177,12 +177,27 @@ fun Config(
         saveCurrentSettings()
     }
 
+    // After a reboot the saved settings may not be back yet: auto-apply waits for Shizuku
+    // and backs off between retries. loadFlags() snapshots whatever the system reports into
+    // the saved settings, so reading first would replace the user's settings with carrier
+    // defaults — and auto-apply would then faithfully "restore" those. Put them back first.
+    fun restorePendingSettings() {
+        if (!repo.autoApplyEnabled || !repo.needsApply()) return
+        val slot = try { moder.simSlotIndex } catch (e: Exception) { return }
+        val saved = repo.loadSlotSettings(slot) ?: return
+        if (!moder.matchesSettings(saved)) {
+            val result = moder.applyAllSettings(saved).get()
+            Log.i(TAG, "restored pending settings for slot $slot before reading: ok=${result.ok} ${result.error ?: ""}")
+        }
+    }
+
     LaunchedEffect(true) {
         if (checkShizukuPermission(0) == ShizukuStatus.GRANTED) {
             if (carrierModer.deviceSupportsIMS && subId >= 0) {
                 configurable =
                     try {
-                        withContext(Dispatchers.Default) {
+                        withContext(Dispatchers.IO) {
+                            restorePendingSettings()
                             loadFlags()
                             loading = false
                         }
@@ -206,6 +221,12 @@ fun Config(
         InfiniteLoadingDialog()
     } else {
         Column(modifier = Modifier.padding(Dp(16f)).verticalScroll(scrollState)) {
+            ClickablePropertyView(
+                label = stringResource(R.string.diag_screen_title),
+                value = stringResource(R.string.diag_entry_description),
+            ) {
+                navController.navigate("config$subId/diagnostics")
+            }
             HeaderText(text = stringResource(R.string.feature_toggles))
             BooleanPropertyView(label = stringResource(R.string.enable_volte), toggled = voLTEEnabled) {
                 voLTEEnabled =

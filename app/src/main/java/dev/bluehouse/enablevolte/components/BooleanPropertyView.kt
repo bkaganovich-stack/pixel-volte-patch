@@ -3,7 +3,9 @@ package dev.bluehouse.enablevolte.components
 import android.os.Build
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -15,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,9 +43,18 @@ fun BooleanPropertyView(
         return
     }
     if (onClick != null) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) {
-            Text(text = label, modifier = Modifier.weight(1F), fontSize = 18.sp)
-            Switch(checked = toggled, enabled = localEnabled, onCheckedChange = onClick)
+        // The whole row toggles, not just the switch: a label is the obvious thing to tap.
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .toggleable(value = toggled, enabled = localEnabled, role = Role.Switch, onValueChange = onClick)
+                    .padding(top = 12.dp, bottom = 12.dp),
+        ) {
+            // End padding keeps a long label from running into the switch; it wraps instead.
+            Text(text = label, modifier = Modifier.weight(1F).padding(end = 16.dp), fontSize = 18.sp)
+            Switch(checked = toggled, enabled = localEnabled, onCheckedChange = null)
         }
     } else {
         Column(modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) {

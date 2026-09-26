@@ -86,12 +86,22 @@ fun StringPropertyView(
             )
         }
     }
-    ClickablePropertyView(label = label, value = value) {
-        if (value != null) {
-            typedText = value
-            openTextEditDialog = true
-        }
-    }
+    // Read-only when there is nothing to update: no ripple, no tap that does nothing.
+    ClickablePropertyView(
+        label = label,
+        value = value,
+        onClick =
+            if (onUpdate != null) {
+                {
+                    if (value != null) {
+                        typedText = value
+                        openTextEditDialog = true
+                    }
+                }
+            } else {
+                null
+            },
+    )
 }
 
 @Preview

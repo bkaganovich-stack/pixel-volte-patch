@@ -57,6 +57,26 @@ object BootLog {
         }
     }
 
+    /**
+     * The log with the newest entry first, so the latest run is what you see without
+     * scrolling to the bottom. Continuation lines (stack traces) stay with their entry.
+     */
+    fun readNewestFirst(context: Context): String {
+        val text = read(context)
+        val entries = mutableListOf<StringBuilder>()
+        for (line in text.lines()) {
+            if (line.isEmpty()) continue
+            if (ENTRY_START.containsMatchIn(line) || entries.isEmpty()) {
+                entries += StringBuilder(line)
+            } else {
+                entries.last().append('\n').append(line)
+            }
+        }
+        return entries.asReversed().joinToString("\n")
+    }
+
+    private val ENTRY_START = Regex("^\\d{2}-\\d{2} \\d{2}:\\d{2}")
+
     fun read(context: Context): String {
         return try {
             val file = File(context.filesDir, FILE_NAME)
