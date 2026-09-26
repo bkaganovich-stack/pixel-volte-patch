@@ -164,33 +164,50 @@ class AutoApplyWorker(
     }
 
     /**
-     * Diagnostic only: records whether IMS came back after the reset. A config that is in
-     * place but not registering points at the network, not at us, so this never fails the run.
+     * Diagnostic only: records whether IMS came back after the reset. resetIms is
+     * asynchronous — right after it returns IMS still reads as registered on the old
+     * config — so first wait for the drop, then for the re-registration. A config that is
+     * in place but not registering points at the network, not at us, so this never fails
+     * the run.
      */
     private suspend fun logImsRegistration(
         moder: SubscriptionModer,
         slotIndex: Int,
     ) {
-        val start = System.currentTimeMillis()
-        while (System.currentTimeMillis() - start < IMS_WAIT_MS) {
-            val registered =
-                try {
-                    moder.isIMSRegistered
-                } catch (e: Throwable) {
-                    false
-                }
-            if (registered) {
-                BootLog.append(applicationContext, WORKER_TAG, "slot $slotIndex: IMS registered after ${(System.currentTimeMillis() - start) / 1000}s")
-                return
+        fun registered() =
+            try {
+                moder.isIMSRegistered
+            } catch (e: Throwable) {
+                false
             }
-            delay(IMS_POLL_MS)
+
+        val start = System.currentTimeMillis()
+        val dropped =
+            withTimeoutOrNull(IMS_DROP_WAIT_MS) {
+                while (registered()) delay(IMS_POLL_MS)
+                true
+            } == true
+        if (!dropped) {
+            BootLog.append(applicationContext, WORKER_TAG, "slot $slotIndex: IMS stayed registered, no drop seen within ${IMS_DROP_WAIT_MS / 1000}s")
+            return
         }
-        BootLog.append(applicationContext, WORKER_TAG, "slot $slotIndex: IMS not registered within ${IMS_WAIT_MS / 1000}s (config is applied)")
+        val back =
+            withTimeoutOrNull(IMS_WAIT_MS) {
+                while (!registered()) delay(IMS_POLL_MS)
+                true
+            } == true
+        val seconds = (System.currentTimeMillis() - start) / 1000
+        if (back) {
+            BootLog.append(applicationContext, WORKER_TAG, "slot $slotIndex: IMS re-registered ${seconds}s after reset")
+        } else {
+            BootLog.append(applicationContext, WORKER_TAG, "slot $slotIndex: IMS not registered ${seconds}s after reset (config is applied)")
+        }
     }
 
     companion object {
         private const val WORK_NAME = "pixel-ims-auto-apply"
         private const val SHIZUKU_WAIT_MS = 60_000L
+        private const val IMS_DROP_WAIT_MS = 10_000L
         private const val IMS_WAIT_MS = 30_000L
         private const val IMS_POLL_MS = 1_000L
 
