@@ -778,9 +778,9 @@ class SubscriptionModer(
      * Whether 5G SA (standalone) is unlocked for this SIM.
      *
      * Pixel carrier configs frequently ship `[NSA]` only, which keeps the modem off any
-     * standalone network no matter what the user picks in Settings. Russian operators
-     * run their n79 (4.6-5.0 GHz) layer as SA, so SA has to be in the list for it to
-     * attach at all.
+     * standalone network no matter what the user picks in Settings. NSA networks, which
+     * anchor 5G on LTE (the Russian ones launched in September 2026 among them), only
+     * need NSA in the list.
      */
     val isNRConfigEnabled: Boolean
         get() =
