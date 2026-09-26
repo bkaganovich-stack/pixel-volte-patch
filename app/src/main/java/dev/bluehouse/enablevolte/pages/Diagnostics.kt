@@ -66,7 +66,7 @@ fun Diagnostics(subId: Int) {
 
     fun apply(fix: DiagnosticFix) {
         when (fix) {
-            DiagnosticFix.ENABLE_SA ->
+            DiagnosticFix.ENABLE_NR ->
                 scope.launch {
                     busy = true
                     withContext(Dispatchers.IO) {
@@ -169,7 +169,7 @@ private fun CheckRow(
 
 private fun fixLabel(fix: DiagnosticFix): Int =
     when (fix) {
-        DiagnosticFix.ENABLE_SA -> R.string.diag_fix_enable_sa
+        DiagnosticFix.ENABLE_NR -> R.string.diag_fix_enable_nr
         DiagnosticFix.OPEN_NETWORK_SETTINGS -> R.string.diag_fix_network_settings
         DiagnosticFix.OPEN_SIM_SETTINGS -> R.string.diag_fix_sim_settings
         DiagnosticFix.RESTART_IMS -> R.string.restart_ims_registration

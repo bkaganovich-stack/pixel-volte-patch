@@ -13,7 +13,7 @@ import androidx.annotation.RequiresApi
 enum class CheckStatus { PASS, WARN, FAIL, UNKNOWN }
 
 /** What the diagnostics screen can do about a failing check. */
-enum class DiagnosticFix { ENABLE_SA, OPEN_NETWORK_SETTINGS, OPEN_SIM_SETTINGS, RESTART_IMS }
+enum class DiagnosticFix { ENABLE_NR, OPEN_NETWORK_SETTINGS, OPEN_SIM_SETTINGS, RESTART_IMS }
 
 data class DiagnosticCheck(
     val title: String,
@@ -25,11 +25,16 @@ data class DiagnosticCheck(
 /**
  * Answers "why is there no 5G on this SIM?" by walking the conditions in the order they
  * gate each other: the modem has to support NR, the carrier config has to allow the mode,
- * Android's network-type policy has to allow NR, and only then does the actual registration
- * say anything about coverage. The first failing check is the one to fix.
+ * Android's network-type policy has to allow NR, and only then does the network side say
+ * anything: whether the serving LTE cell can anchor 5G, and whether 5G was actually added.
+ * The first failing check is the one to fix.
  *
- * Russian networks run 5G as SA on n79, so SA in the carrier config is the check that
- * matters most there; NSA-only configs are what Pixel ships for most carriers.
+ * Most networks, including the Russian ones launched in September 2026, run 5G as NSA on
+ * an LTE anchor, so NSA is the mode that has to be allowed; SA is optional.
+ *
+ * The anchor check is what tells the network and the phone apart: if the cell offers 5G,
+ * 5G is not restricted for this SIM, and 5G still never gets added while data flows, the
+ * block is in the modem's own carrier profile, which no carrier config override reaches.
  */
 @RequiresApi(Build.VERSION_CODES.S)
 object FiveGDiagnostics {
@@ -45,6 +50,7 @@ object FiveGDiagnostics {
             userNetworkMode(context, moder),
             otherRestrictions(context, moder),
             dataSim(context, moder),
+            anchorCell(context, moder),
             registration(context, moder),
             ims(context, moder),
         )
@@ -95,12 +101,15 @@ object FiveGDiagnostics {
                 }
             }.ifEmpty { context.getString(R.string.diag_none) }
         return when {
-            CARRIER_NR_AVAILABILITY_SA in modes ->
+            CARRIER_NR_AVAILABILITY_NSA in modes && CARRIER_NR_AVAILABILITY_SA in modes ->
                 DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_carrier_ok, names))
+            // NSA alone is what stock Pixel configs ship, and it is enough for NSA networks.
             CARRIER_NR_AVAILABILITY_NSA in modes ->
-                DiagnosticCheck(title, CheckStatus.FAIL, context.getString(R.string.diag_carrier_nsa_only, names), DiagnosticFix.ENABLE_SA)
+                DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_carrier_nsa_only, names))
+            CARRIER_NR_AVAILABILITY_SA in modes ->
+                DiagnosticCheck(title, CheckStatus.FAIL, context.getString(R.string.diag_carrier_sa_only, names), DiagnosticFix.ENABLE_NR)
             else ->
-                DiagnosticCheck(title, CheckStatus.FAIL, context.getString(R.string.diag_carrier_none), DiagnosticFix.ENABLE_SA)
+                DiagnosticCheck(title, CheckStatus.FAIL, context.getString(R.string.diag_carrier_none), DiagnosticFix.ENABLE_NR)
         }
     }
 
@@ -155,31 +164,74 @@ object FiveGDiagnostics {
         }
     }
 
+    /**
+     * The cellular registrations, packet-switched first. Only the PS entry carries the
+     * EN-DC indicators and the NR state; the CS entry for the same LTE cell always reads
+     * NR_STATE_NONE, so picking it would hide NSA entirely.
+     */
+    private fun cellular(moder: SubscriptionModer): List<NetworkRegistrationInfo>? =
+        moder.serviceState
+            ?.networkRegistrationInfoList
+            ?.filter { it.transportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN && it.isRegistered }
+            ?.sortedByDescending { it.domain and NetworkRegistrationInfo.DOMAIN_PS != 0 }
+
+    private fun List<NetworkRegistrationInfo>.of(tech: Int) = firstOrNull { it.accessNetworkTechnology == tech }
+
+    /**
+     * Whether the LTE cell the phone is on can have 5G added on top (an EN-DC anchor) and
+     * whether the network lets this SIM use it. These flags come from the cell and the
+     * network, not from anything on the phone.
+     */
+    private fun anchorCell(
+        context: Context,
+        moder: SubscriptionModer,
+    ): DiagnosticCheck {
+        val title = context.getString(R.string.diag_anchor_title)
+        val cellular =
+            cellular(moder) ?: return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_unknown_detail))
+        if (cellular.of(TelephonyManager.NETWORK_TYPE_NR) != null) {
+            return DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_anchor_not_needed))
+        }
+        val lte =
+            cellular.of(TelephonyManager.NETWORK_TYPE_LTE)
+                ?: return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_anchor_no_lte))
+        val info =
+            lte.dataSpecificInfo
+                ?: return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_unknown_detail))
+        val band = bandOf(lte)
+        return when {
+            !info.isEnDcAvailable && info.isNrAvailable ->
+                DiagnosticCheck(title, CheckStatus.WARN, context.getString(R.string.diag_anchor_elsewhere, band))
+            !info.isEnDcAvailable ->
+                DiagnosticCheck(title, CheckStatus.WARN, context.getString(R.string.diag_anchor_none, band))
+            info.isDcNrRestricted || !info.isNrAvailable ->
+                DiagnosticCheck(title, CheckStatus.FAIL, context.getString(R.string.diag_anchor_restricted, band))
+            else ->
+                DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_anchor_ok, band))
+        }
+    }
+
     private fun registration(
         context: Context,
         moder: SubscriptionModer,
     ): DiagnosticCheck {
         val title = context.getString(R.string.diag_registration_title)
-        val state =
-            moder.serviceState
-                ?: return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_unknown_detail))
         val cellular =
-            state.networkRegistrationInfoList.filter {
-                it.transportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN && it.isRegistered
-            }
-        val nr = cellular.firstOrNull { it.accessNetworkTechnology == TelephonyManager.NETWORK_TYPE_NR }
+            cellular(moder) ?: return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_unknown_detail))
+        val nr = cellular.of(TelephonyManager.NETWORK_TYPE_NR)
         if (nr != null) {
             return DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_registration_sa, bandOf(nr)))
         }
-        val lte = cellular.firstOrNull { it.accessNetworkTechnology == TelephonyManager.NETWORK_TYPE_LTE }
+        val lte = cellular.of(TelephonyManager.NETWORK_TYPE_LTE)
         if (lte != null) {
             return when (lte.nrState) {
                 NetworkRegistrationInfo.NR_STATE_CONNECTED ->
                     DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_registration_nsa, bandOf(lte)))
+                // The cell offers 5G, but the network only adds it while data flows. If it
+                // never does, even during a download, the modem is not using 5G here.
                 NetworkRegistrationInfo.NR_STATE_NOT_RESTRICTED ->
-                    DiagnosticCheck(title, CheckStatus.PASS, context.getString(R.string.diag_registration_nsa_idle, bandOf(lte)))
-                // Everything above passed and we are still on LTE: no 5G cell here, or the
-                // network does not let this SIM on it. Not something a setting can fix.
+                    DiagnosticCheck(title, CheckStatus.WARN, context.getString(R.string.diag_registration_nsa_idle, bandOf(lte)))
+                // The anchor check above says why this cell gives no 5G.
                 else -> DiagnosticCheck(title, CheckStatus.WARN, context.getString(R.string.diag_registration_lte, bandOf(lte)))
             }
         }
@@ -223,7 +275,7 @@ object FiveGDiagnostics {
     /**
      * NR-ARFCN ranges (3GPP TS 38.101-1). Only bands whose range does not overlap another
      * band are resolved here (n77/n78, n20/n28, n1/n66 and n7/n38/n41 overlap), so the rest
-     * fall back to the modem's own band list. n79 — the Russian SA layer — is unambiguous.
+     * fall back to the modem's own band list. n79 — Russia's high-band 5G layer — is unambiguous.
      */
     private val NR_BANDS =
         listOf(
