@@ -310,17 +310,8 @@ fun Config(
                 minSdk = VERSION_CODES.TIRAMISU,
             ) {
                 if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
-                    crossSIMEnabled =
-                        if (crossSIMEnabled) {
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_CROSS_SIM_IMS_AVAILABLE_BOOL, false)
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_ENABLE_CROSS_SIM_CALLING_ON_OPPORTUNISTIC_DATA_BOOL, false)
-                            false
-                        } else {
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_CROSS_SIM_IMS_AVAILABLE_BOOL, true)
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_ENABLE_CROSS_SIM_CALLING_ON_OPPORTUNISTIC_DATA_BOOL, true)
-                            moder.restartIMSRegistration()
-                            true
-                        }
+                    crossSIMEnabled = !crossSIMEnabled
+                    moder.setBackupCalling(crossSIMEnabled)
                     saveCurrentSettings()
                 }
             }
