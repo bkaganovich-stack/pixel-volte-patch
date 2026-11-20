@@ -310,17 +310,8 @@ fun Config(
                 minSdk = VERSION_CODES.TIRAMISU,
             ) {
                 if (VERSION.SDK_INT >= VERSION_CODES.TIRAMISU) {
-                    crossSIMEnabled =
-                        if (crossSIMEnabled) {
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_CROSS_SIM_IMS_AVAILABLE_BOOL, false)
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_ENABLE_CROSS_SIM_CALLING_ON_OPPORTUNISTIC_DATA_BOOL, false)
-                            false
-                        } else {
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_CARRIER_CROSS_SIM_IMS_AVAILABLE_BOOL, true)
-                            moder.updateCarrierConfig(CarrierConfigManager.KEY_ENABLE_CROSS_SIM_CALLING_ON_OPPORTUNISTIC_DATA_BOOL, true)
-                            moder.restartIMSRegistration()
-                            true
-                        }
+                    crossSIMEnabled = !crossSIMEnabled
+                    moder.setBackupCalling(crossSIMEnabled)
                     saveCurrentSettings()
                 }
             }
@@ -678,11 +669,13 @@ fun Config(
             ) {
                 val cleared = moder.clearCarrierConfig()
                 val restored = moder.restorePersistentVoLTE(repo)
+                val crossSimRestored = moder.restoreBackupCallingFlag(repo)
                 scope.launch {
                     withContext(Dispatchers.IO) {
-                        // Wait for both: re-reading earlier would show the old values.
+                        // Wait for all three: re-reading earlier would show the old values.
                         cleared.get()
                         restored.get()
+                        crossSimRestored.get()
                         loadFlags()
                     }
                 }

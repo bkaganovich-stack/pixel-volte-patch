@@ -26,6 +26,8 @@ class SettingsRepository(private val context: Context) {
         private fun slotKey(slotIndex: Int, key: String) = "slot_${slotIndex}_$key"
 
         private fun optInBackupKey(simIdentity: String) = "optin_backup_$simIdentity"
+
+        private fun crossSimBackupKey(simIdentity: String) = "crosssim_backup_$simIdentity"
     }
 
     private val prefs: SharedPreferences
@@ -99,6 +101,24 @@ class SettingsRepository(private val context: Context) {
 
     fun clearOptInBackup(simIdentity: String) {
         prefs.edit().remove(optInBackupKey(simIdentity)).apply()
+    }
+
+    /**
+     * The SIM's backup calling user flag (cross_sim_calling_enabled) from before this app
+     * first wrote it: 1 or 0, or -1 if it could not be read. Null when there is no backup.
+     */
+    fun loadCrossSimBackup(simIdentity: String): Int? =
+        if (prefs.contains(crossSimBackupKey(simIdentity))) prefs.getInt(crossSimBackupKey(simIdentity), -1) else null
+
+    fun saveCrossSimBackup(
+        simIdentity: String,
+        value: Int,
+    ) {
+        prefs.edit().putInt(crossSimBackupKey(simIdentity), value).apply()
+    }
+
+    fun clearCrossSimBackup(simIdentity: String) {
+        prefs.edit().remove(crossSimBackupKey(simIdentity)).apply()
     }
 
     /** Returns true if there are saved settings for the given SIM slot. */

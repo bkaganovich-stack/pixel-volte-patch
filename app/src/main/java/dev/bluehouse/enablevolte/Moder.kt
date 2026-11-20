@@ -38,6 +38,9 @@ private const val SHELL_PACKAGE = "com.android.shell"
 private const val COLUMN_VOIMS_OPT_IN = "voims_opt_in_status"
 private const val COLUMN_ENHANCED_4G_MODE = "volte_vt_enabled"
 
+/** Subscription database column SubscriptionManager.CROSS_SIM_CALLING_ENABLED. */
+private const val COLUMN_CROSS_SIM_CALLING = "cross_sim_calling_enabled"
+
 /** Values of [CarrierConfigManager.KEY_CARRIER_NR_AVAILABILITIES_INT_ARRAY]. */
 const val CARRIER_NR_AVAILABILITY_NSA = 1
 const val CARRIER_NR_AVAILABILITY_SA = 2
@@ -357,6 +360,17 @@ class SubscriptionModer(
 
         return BrokerQueue.submit {
             val result = writeConfigNow(bundle)
+            if (result.ok && Build.VERSION.SDK_INT >= VERSION_CODES.TIRAMISU && settings.crossSIMEnabled) {
+                // Never written as false here: a SIM the user left alone keeps whatever
+                // the system or the user chose for it.
+                try {
+                    writeCrossSimUserFlag(true)
+                } catch (e: Throwable) {
+                    // The carrier config did land; failing the apply would only make
+                    // AutoApplyWorker retry a write the platform keeps refusing.
+                    Log.e(TAG, "backup calling user flag write failed", e)
+                }
+            }
             if (result.ok) {
                 try {
                     resetImsNow()
@@ -386,9 +400,14 @@ class SubscriptionModer(
             val nrMatches =
                 Build.VERSION.SDK_INT < VERSION_CODES.S ||
                     isNRConfigEnabled == settings.nrSAEnabled
+            // The phone process can put the per-SIM flag back to 0 on its own, so a boot
+            // where only that flag drifted still needs an apply.
             val crossSimMatches =
                 Build.VERSION.SDK_INT < VERSION_CODES.TIRAMISU ||
-                    isCrossSIMConfigEnabled == settings.crossSIMEnabled
+                    (
+                        isCrossSIMConfigEnabled == settings.crossSIMEnabled &&
+                            (!settings.crossSIMEnabled || isCrossSimUserFlagEnabled != false)
+                    )
 
             isVoLteConfigEnabled == settings.voLTEEnabled &&
                 vonrMatches &&
@@ -405,6 +424,107 @@ class SubscriptionModer(
         } catch (e: Throwable) {
             Log.d(TAG, "matchesSettings: could not read config, assuming mismatch", e)
             false
+        }
+
+    // ── Backup calling (cross-SIM calling) ───────────────────────────────────
+    //
+    // Backup calling needs two things: the carrier config gate
+    // (carrier_cross_sim_ims_available_bool) and a per-subscription user flag, column
+    // cross_sim_calling_enabled of the subscription database. Android 14 removed the
+    // Settings switch that set the flag, so on most SIMs it stays 0 and the feature never
+    // engages however the carrier config is set (issue #6).
+
+    /** The per-SIM user flag, or null when the platform refuses to tell. */
+    val isCrossSimUserFlagEnabled: Boolean?
+        get() =
+            try {
+                this.loadCachedInterface { telephony }.isCrossSimCallingEnabledByUser(subscriptionId)
+            } catch (e: Throwable) {
+                Log.w(TAG, "isCrossSimCallingEnabledByUser failed", e)
+                try {
+                    rawSubscriptionProperty(COLUMN_CROSS_SIM_CALLING)?.let { it == 1 }
+                } catch (e2: Throwable) {
+                    null
+                }
+            }
+
+    /**
+     * Sets the per-SIM backup calling flag. Goes through ITelephony first, which also tells
+     * the IMS stack about the change; writes the database column directly only if that call
+     * is refused. Throws if the flag still reads back wrong. Runs on the [BrokerQueue] thread.
+     */
+    private fun writeCrossSimUserFlag(enabled: Boolean) {
+        // Remember the SIM's own value once, so "Reset all settings" can put it back.
+        try {
+            val repo = SettingsRepository(context)
+            val identity = simIdentity()
+            if (repo.loadCrossSimBackup(identity) == null) {
+                repo.saveCrossSimBackup(identity, isCrossSimUserFlagEnabled?.let { if (it) 1 else 0 } ?: -1)
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "could not back up the backup calling flag", e)
+        }
+        writeCrossSimUserFlagRaw(enabled)
+    }
+
+    private fun writeCrossSimUserFlagRaw(enabled: Boolean) {
+        try {
+            this.loadCachedInterface { telephony }.setCrossSimCallingEnabled(subscriptionId, enabled)
+        } catch (e: Throwable) {
+            Log.w(TAG, "setCrossSimCallingEnabled refused, writing the subscription column", e)
+            writeSubscriptionProperty(COLUMN_CROSS_SIM_CALLING, if (enabled) 1 else 0)
+        }
+        val now = isCrossSimUserFlagEnabled
+        check(now == null || now == enabled) { "cross_sim_calling_enabled did not change" }
+    }
+
+    /**
+     * Turns backup calling on or off for this SIM: both carrier config keys in one write,
+     * then the per-SIM user flag, then an IMS restart so registration picks it up.
+     */
+    @RequiresApi(VERSION_CODES.TIRAMISU)
+    fun setBackupCalling(enabled: Boolean): Future<BrokerResult> =
+        BrokerQueue.submit {
+            val bundle =
+                Bundle().apply {
+                    putBoolean(CarrierConfigManager.KEY_CARRIER_CROSS_SIM_IMS_AVAILABLE_BOOL, enabled)
+                    putBoolean(CarrierConfigManager.KEY_ENABLE_CROSS_SIM_CALLING_ON_OPPORTUNISTIC_DATA_BOOL, enabled)
+                }
+            var result = writeConfigNow(bundle)
+            if (result.ok) {
+                result =
+                    try {
+                        writeCrossSimUserFlag(enabled)
+                        BrokerResult.OK
+                    } catch (e: Throwable) {
+                        Log.e(TAG, "setBackupCalling($enabled): user flag write failed", e)
+                        BrokerResult(false, "${e.javaClass.simpleName}: ${e.message}")
+                    }
+                try {
+                    resetImsNow()
+                } catch (e: Throwable) {
+                    Log.e(TAG, "resetIms after backup calling change failed", e)
+                }
+            }
+            result.also { toastIfFailed(it) }
+        }
+
+    /**
+     * Puts the backup calling user flag back to what it was before this app first wrote it.
+     * Does nothing for a SIM we never changed, or whose original value could not be read.
+     */
+    fun restoreBackupCallingFlag(repo: SettingsRepository): Future<BrokerResult> =
+        BrokerQueue.submit {
+            try {
+                val identity = simIdentity()
+                val original = repo.loadCrossSimBackup(identity) ?: return@submit BrokerResult.OK
+                if (original == 0 || original == 1) writeCrossSimUserFlagRaw(original == 1)
+                repo.clearCrossSimBackup(identity)
+                BrokerResult.OK
+            } catch (e: Throwable) {
+                Log.e(TAG, "restoreBackupCallingFlag failed", e)
+                BrokerResult(false, "${e.javaClass.simpleName}: ${e.message}")
+            }.also { toastIfFailed(it) }
         }
 
     // ── Radio state, read for the 5G diagnostics ─────────────────────────────
