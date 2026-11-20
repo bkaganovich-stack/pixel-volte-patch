@@ -454,6 +454,20 @@ class SubscriptionModer(
      * is refused. Throws if the flag still reads back wrong. Runs on the [BrokerQueue] thread.
      */
     private fun writeCrossSimUserFlag(enabled: Boolean) {
+        // Remember the SIM's own value once, so "Reset all settings" can put it back.
+        try {
+            val repo = SettingsRepository(context)
+            val identity = simIdentity()
+            if (repo.loadCrossSimBackup(identity) == null) {
+                repo.saveCrossSimBackup(identity, isCrossSimUserFlagEnabled?.let { if (it) 1 else 0 } ?: -1)
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "could not back up the backup calling flag", e)
+        }
+        writeCrossSimUserFlagRaw(enabled)
+    }
+
+    private fun writeCrossSimUserFlagRaw(enabled: Boolean) {
         try {
             this.loadCachedInterface { telephony }.setCrossSimCallingEnabled(subscriptionId, enabled)
         } catch (e: Throwable) {
@@ -493,6 +507,24 @@ class SubscriptionModer(
                 }
             }
             result.also { toastIfFailed(it) }
+        }
+
+    /**
+     * Puts the backup calling user flag back to what it was before this app first wrote it.
+     * Does nothing for a SIM we never changed, or whose original value could not be read.
+     */
+    fun restoreBackupCallingFlag(repo: SettingsRepository): Future<BrokerResult> =
+        BrokerQueue.submit {
+            try {
+                val identity = simIdentity()
+                val original = repo.loadCrossSimBackup(identity) ?: return@submit BrokerResult.OK
+                if (original == 0 || original == 1) writeCrossSimUserFlagRaw(original == 1)
+                repo.clearCrossSimBackup(identity)
+                BrokerResult.OK
+            } catch (e: Throwable) {
+                Log.e(TAG, "restoreBackupCallingFlag failed", e)
+                BrokerResult(false, "${e.javaClass.simpleName}: ${e.message}")
+            }.also { toastIfFailed(it) }
         }
 
     // ── Radio state, read for the 5G diagnostics ─────────────────────────────

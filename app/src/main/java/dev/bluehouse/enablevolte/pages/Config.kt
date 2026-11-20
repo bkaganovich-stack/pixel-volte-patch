@@ -669,11 +669,13 @@ fun Config(
             ) {
                 val cleared = moder.clearCarrierConfig()
                 val restored = moder.restorePersistentVoLTE(repo)
+                val crossSimRestored = moder.restoreBackupCallingFlag(repo)
                 scope.launch {
                     withContext(Dispatchers.IO) {
-                        // Wait for both: re-reading earlier would show the old values.
+                        // Wait for all three: re-reading earlier would show the old values.
                         cleared.get()
                         restored.get()
+                        crossSimRestored.get()
                         loadFlags()
                     }
                 }
