@@ -1,6 +1,6 @@
 <p align="right"><b>Русский</b> | <a href="README.en.md">English</a></p>
 
-[![Android](https://img.shields.io/badge/Android-14%E2%80%9317-3DDC84?logo=android&logoColor=white)](#) [![Devices](https://img.shields.io/badge/Google%20Pixel-6%E2%80%9311%20Series-4285F4?logo=google&logoColor=white)](#) [![Shizuku](https://img.shields.io/badge/Powered%20by-Shizuku--Next-FF6F00)](#) [![Release](https://img.shields.io/github/v/release/bkaganovich-stack/pixel-volte-patch?color=blue)](https://github.com/bkaganovich-stack/pixel-volte-patch/releases)
+[![Android](https://img.shields.io/badge/Android-14%E2%80%9317-3DDC84?logo=android&logoColor=white)](#) [![Devices](https://img.shields.io/badge/Google%20Pixel-6%E2%80%9311%20Series-4285F4?logo=google&logoColor=white)](#) [![Shizuku](https://img.shields.io/badge/Powered%20by-Shizuku--Next-FF6F00)](#) [![Release](https://img.shields.io/github/v/release/bkaganovich-stack/pixel-volte-patch?color=blue)](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) [![awesome-shizuku](https://img.shields.io/badge/awesome--shizuku-listed-fc60a8?logo=awesomelists&logoColor=white)](https://github.com/timschneeb/awesome-shizuku#google-pixel)
 
 # Активация VoLTE и VoWiFi на смартфонах Google Pixel без Root-прав и разблокировки загрузчика
 
@@ -32,6 +32,14 @@
 
 1. Перейдите на страницу релизов [**Shizuku-Next**](https://github.com/rushiranpise/Shizuku-Next/releases), раскройте вкладку **Assets** у самой свежей версии, скачайте файл с расширением `.apk` и установите его.
 2. Перейдите в раздел релизов [**Pixel IMS**](https://github.com/bkaganovich-stack/pixel-volte-patch/releases), аналогично откройте блок **Assets**, скачайте `.apk` и установите приложение на смартфон.
+
+<p align="center">
+  <a href="https://github.com/bkaganovich-stack/pixel-volte-patch/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" height="80" alt="Скачать на GitHub" /></a>
+  <a href="https://shizustore.com/apps/pixel-ims-bkaganovich-stack-s-fork"><img src="https://raw.githubusercontent.com/timschneeb/ShizuStore/refs/heads/master/artwork/get-it-on-shizustore.png" height="80" alt="Скачать в ShizuStore" /></a>
+</p>
+
+> [!TIP]
+> Если [ShizuStore](https://github.com/timschneeb/ShizuStore) у вас уже установлен, Pixel IMS можно поставить оттуда: магазин устанавливает приложения через Shizuku и сам следит за обновлениями. Приложение входит в каталог [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku#google-pixel), из которого ShizuStore берёт свой список.
 
 <p align="center">
   <img src="docs/screenshots/01_github_assets.png" width="260" alt="Скачивание APK из раздела Assets" />
@@ -224,4 +232,5 @@ curl -L https://github.com/Reginer/aosp-android-jar/raw/main/android-36/android.
 * Исправление для Android 16 QPR2 Beta 3: [tdrkDev/pixel-volte-patch](https://github.com/tdrkDev/pixel-volte-patch)
 * Оригинальный Shizuku: [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku)
 * Системный бэкенд: [Shizuku-Next (@rushiranpise)](https://github.com/rushiranpise/Shizuku-Next)
+* Каталоги: [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku) и [ShizuStore](https://github.com/timschneeb/ShizuStore) ([@timschneeb](https://github.com/timschneeb))
 * Лицензия: [GPL-3.0](LICENSE), как и у оригинального проекта.

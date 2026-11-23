@@ -1,6 +1,6 @@
 <p align="right"><a href="README.md">Русский</a> | <b>English</b></p>
 
-[![Android](https://img.shields.io/badge/Android-14%E2%80%9317-3DDC84?logo=android&logoColor=white)](#) [![Devices](https://img.shields.io/badge/Google%20Pixel-6%E2%80%9311%20Series-4285F4?logo=google&logoColor=white)](#) [![Shizuku](https://img.shields.io/badge/Powered%20by-Shizuku--Next-FF6F00)](#) [![Release](https://img.shields.io/github/v/release/bkaganovich-stack/pixel-volte-patch?color=blue)](https://github.com/bkaganovich-stack/pixel-volte-patch/releases)
+[![Android](https://img.shields.io/badge/Android-14%E2%80%9317-3DDC84?logo=android&logoColor=white)](#) [![Devices](https://img.shields.io/badge/Google%20Pixel-6%E2%80%9311%20Series-4285F4?logo=google&logoColor=white)](#) [![Shizuku](https://img.shields.io/badge/Powered%20by-Shizuku--Next-FF6F00)](#) [![Release](https://img.shields.io/github/v/release/bkaganovich-stack/pixel-volte-patch?color=blue)](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) [![awesome-shizuku](https://img.shields.io/badge/awesome--shizuku-listed-fc60a8?logo=awesomelists&logoColor=white)](https://github.com/timschneeb/awesome-shizuku#google-pixel)
 
 # Enabling VoLTE and VoWiFi on Google Pixel phones without root or an unlocked bootloader
 
@@ -35,6 +35,14 @@ The app works through the standard system API `CarrierConfigManager`, using the 
 
 1. Go to the [**Shizuku-Next**](https://github.com/rushiranpise/Shizuku-Next/releases) releases page, expand **Assets** under the latest version, download the `.apk` file and install it.
 2. Go to the [**Pixel IMS**](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) releases page, open **Assets** the same way, download the `.apk` and install the app on your phone.
+
+<p align="center">
+  <a href="https://github.com/bkaganovich-stack/pixel-volte-patch/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" height="80" alt="Get it on GitHub" /></a>
+  <a href="https://shizustore.com/apps/pixel-ims-bkaganovich-stack-s-fork"><img src="https://raw.githubusercontent.com/timschneeb/ShizuStore/refs/heads/master/artwork/get-it-on-shizustore.png" height="80" alt="Get it on ShizuStore" /></a>
+</p>
+
+> [!TIP]
+> If you already have [ShizuStore](https://github.com/timschneeb/ShizuStore), you can install Pixel IMS from there: the store installs apps through Shizuku and keeps them up to date. The app is listed in [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku#google-pixel), the catalog ShizuStore builds its list from.
 
 <p align="center">
   <img src="docs/screenshots/01_github_assets.png" width="260" alt="Downloading the APK from Assets" />
@@ -227,4 +235,5 @@ curl -L https://github.com/Reginer/aosp-android-jar/raw/main/android-36/android.
 * Android 16 QPR2 Beta 3 fix: [tdrkDev/pixel-volte-patch](https://github.com/tdrkDev/pixel-volte-patch)
 * Original Shizuku: [RikkaApps/Shizuku](https://github.com/RikkaApps/Shizuku)
 * System backend: [Shizuku-Next (@rushiranpise)](https://github.com/rushiranpise/Shizuku-Next)
+* Catalogs: [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku) and [ShizuStore](https://github.com/timschneeb/ShizuStore) ([@timschneeb](https://github.com/timschneeb))
 * License: [GPL-3.0](LICENSE), the same as the original project.
