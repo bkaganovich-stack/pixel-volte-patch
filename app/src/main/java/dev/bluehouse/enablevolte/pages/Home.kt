@@ -76,12 +76,13 @@ fun Home(navController: NavController) {
 
     var shizukuEnabled by rememberSaveable { mutableStateOf(false) }
     var shizukuGranted by rememberSaveable { mutableStateOf(false) }
-    var subscriptions by rememberSaveable { mutableStateOf(listOf<SubscriptionInfo>()) }
+    var subscriptions by remember { mutableStateOf(listOf<SubscriptionInfo>()) }
     var deviceIMSEnabled by rememberSaveable { mutableStateOf(false) }
     var autoApplyEnabled by rememberSaveable { mutableStateOf(repo.autoApplyEnabled) }
-    var bootLogText by rememberSaveable { mutableStateOf(BootLog.readNewestFirst(context)) }
+    // Not saveable: the boot log can be large and is cheap to re-read (upstream #489).
+    var bootLogText by remember { mutableStateOf(BootLog.readNewestFirst(context)) }
 
-    var isIMSRegistered by rememberSaveable { mutableStateOf(listOf<Boolean>()) }
+    var isIMSRegistered by remember { mutableStateOf(listOf<Boolean?>()) }
     var conflicts by remember { mutableStateOf(listOf<ConflictDetector.Conflict>()) }
     var newerVersion by rememberSaveable { mutableStateOf("") }
 
@@ -289,10 +290,8 @@ fun Home(navController: NavController) {
         BooleanPropertyView(label = stringResource(R.string.volte_supported_by_device), toggled = deviceIMSEnabled)
 
         for (idx in subscriptions.indices) {
-            var isRegistered = false
-            if (isIMSRegistered.isNotEmpty()) {
-                isRegistered = isIMSRegistered[idx]
-            }
+            // null (not loaded yet, or no IMS check variant works on this build) renders as "Unknown"
+            val isRegistered = isIMSRegistered.getOrNull(idx)
             HeaderText(text = stringResource(R.string.ims_status_for, subscriptions[idx].uniqueName))
             BooleanPropertyView(
                 label = stringResource(R.string.ims_status),

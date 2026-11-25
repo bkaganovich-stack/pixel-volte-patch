@@ -69,6 +69,8 @@
   <string name="loading">読み込み中…</string>
   <string name="loaded">「%2$s」の「%1$s」を読み込みました</string>
   <string name="edit_value">値を編集</string>
+  <string name="invalid_number_value">有効な %1$s 値を入力してください</string>
+  <string name="update_value_failed">値の更新に失敗しました: %1$s</string>
   <string name="search">検索</string>
   <string name="qstile">クイック設定タイル</string>
   <string name="qs_status_tile_title">IMS ステータス (SIM %1$s)</string>
@@ -79,6 +81,7 @@
   <string name="qs_toggle_tile_title_sim_2">VoLTE の設定 (SIM 2)</string>
   <string name="add_status_tile">IMS ステータス表示タイルを追加する</string>
   <string name="add_toggle_tile">VoLTE 設定の切り替えタイルを追加する</string>
+  <string name="sim_page_unavailable">この SIM は利用できません。Shizuku が起動して権限が許可されていることを確認し、ホーム画面で更新してください。</string>
   <string name="sim_config">SIM の設定</string>
   <string name="config_dump_viewer">設定ダンプビューワー</string>
   <string name="persistent_volte">再起動後も VoLTE を維持</string>
