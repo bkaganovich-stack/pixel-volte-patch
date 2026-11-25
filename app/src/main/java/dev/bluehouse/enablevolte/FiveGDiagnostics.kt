@@ -293,8 +293,8 @@ object FiveGDiagnostics {
             try {
                 moder.isIMSRegistered
             } catch (e: Throwable) {
-                return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_unknown_detail))
-            }
+                null
+            } ?: return DiagnosticCheck(title, CheckStatus.UNKNOWN, context.getString(R.string.diag_unknown_detail))
         if (!registered) {
             return DiagnosticCheck(title, CheckStatus.WARN, context.getString(R.string.diag_ims_fail), DiagnosticFix.RESTART_IMS)
         }

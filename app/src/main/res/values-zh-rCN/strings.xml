@@ -69,6 +69,8 @@
     <string name="loading">加载中…</string>
     <string name="loaded">已加载 %1$s 共 %2$s</string>
     <string name="edit_value">更改值</string>
+    <string name="invalid_number_value">请输入有效的 %1$s 值</string>
+    <string name="update_value_failed">更新值失败：%1$s</string>
     <string name="search">搜索</string>
     <string name="qstile">快捷设置图块</string>
     <string name="qs_status_tile_title">IMS 状态 (SIM %1$s)</string>
@@ -79,6 +81,7 @@
     <string name="qs_toggle_tile_title_sim_2">启用 VoLTE (SIM 2)</string>
     <string name="add_status_tile">添加 IMS 状态显示图块</string>
     <string name="add_toggle_tile">添加 VoLTE 开关图块</string>
+    <string name="sim_page_unavailable">此 SIM 卡不可用。请确认 Shizuku 正在运行且已授予权限，然后在主页刷新。</string>
     <string name="sim_config">SIM 配置</string>
     <string name="config_dump_viewer">配置转储查看器</string>
     <string name="persistent_volte">重启后保持 VoLTE 开启</string>

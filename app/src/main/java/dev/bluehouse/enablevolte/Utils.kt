@@ -27,6 +27,16 @@ enum class ShizukuStatus {
     STOPPED,
 }
 
+/**
+ * Side-effect free variant of [checkShizukuPermission]: never requests the permission.
+ */
+fun isShizukuPermissionGranted(): Boolean =
+    try {
+        Shizuku.pingBinder() && Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+    } catch (_: RuntimeException) {
+        false
+    }
+
 fun checkShizukuPermission(code: Int): ShizukuStatus =
     if (Shizuku.getBinder() != null) {
         if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {

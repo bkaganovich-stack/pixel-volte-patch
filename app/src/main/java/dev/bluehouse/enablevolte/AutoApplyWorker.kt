@@ -176,7 +176,7 @@ class AutoApplyWorker(
     ) {
         fun registered() =
             try {
-                moder.isIMSRegistered
+                moder.isIMSRegistered == true
             } catch (e: Throwable) {
                 false
             }

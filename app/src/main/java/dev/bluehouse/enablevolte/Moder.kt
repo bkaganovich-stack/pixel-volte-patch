@@ -778,6 +778,18 @@ class SubscriptionModer(
         return config.getIntArray(key) ?: IntArray(0)
     }
 
+    fun getLongArrayValue(key: String): LongArray {
+        Log.d(TAG, "Resolving long array value of key $key")
+        val subscriptionId = this.subscriptionId
+        if (subscriptionId < 0) {
+            return longArrayOf()
+        }
+        val iCclInstance = this.loadCachedInterface { carrierConfigLoader }
+
+        val config = iCclInstance.getConfigForSubIdWithFeature(subscriptionId, iCclInstance.defaultCarrierServicePackageName, "")
+        return config.getLongArray(key) ?: LongArray(0)
+    }
+
     fun getStringArrayValue(key: String): Array<String> {
         Log.d(TAG, "Resolving string array value of key $key")
         val subscriptionId = this.subscriptionId
@@ -915,9 +927,26 @@ class SubscriptionModer(
     val userAgentConfig: String
         get() = this.getStringValue(KEY_IMS_USER_AGENT) ?: ""
 
-    val isIMSRegistered: Boolean
+    /**
+     * true / false when the IMS registration state could be read, or null ("unknown") when no
+     * hidden `ITelephony` variant worked on this build (signature drift, missing method, ...).
+     * Ported from upstream Pixel IMS #498.
+     */
+    val isIMSRegistered: Boolean?
         get() {
             val telephony = this.loadCachedInterface { telephony }
-            return telephony.isImsRegistered(this.subscriptionId)
+            return ImsRegistrationCheck.resolve(
+                listOf(
+                    ImsRegistrationCheck.Step("isImsRegisteredForSubscriber(subId)") {
+                        ImsRegistrationCheck.invokeIntToBoolean(telephony, "isImsRegisteredForSubscriber", this.subscriptionId)
+                    },
+                    // No isImsRegistered(slotIndex) step: it resolves to the same isImsRegistered(int) method,
+                    // so it could only run after the subId call failed at runtime, and would then pass a
+                    // slot index where a subId is expected and report another SIM's state.
+                    ImsRegistrationCheck.Step("isImsRegistered(subId)") {
+                        telephony.isImsRegistered(this.subscriptionId)
+                    },
+                ),
+            ) { step, e -> Log.w(TAG, "IMS registration check via $step failed", e) }
         }
 }

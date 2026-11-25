@@ -41,6 +41,9 @@ import dev.bluehouse.enablevolte.components.HeaderText
 import dev.bluehouse.enablevolte.components.InfiniteLoadingDialog
 import dev.bluehouse.enablevolte.components.RadioSelectPropertyView
 import dev.bluehouse.enablevolte.components.UserAgentPropertyView
+import dev.bluehouse.enablevolte.configDiagnosticsRoute
+import dev.bluehouse.enablevolte.configDumpRoute
+import dev.bluehouse.enablevolte.configEditRoute
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,8 +90,6 @@ fun Config(
     var hideEnhancedDataIconEnabled by rememberSaveable { mutableStateOf(false) }
     var is4GPlusEnabled by rememberSaveable { mutableStateOf(false) }
     var configuredUserAgent: String? by rememberSaveable { mutableStateOf("") }
-    var configurableItems by rememberSaveable { mutableStateOf<Map<String, String>>(mapOf()) }
-    var reversedConfigurableItems by rememberSaveable { mutableStateOf<Map<String, String>>(mapOf()) }
     var loading by rememberSaveable { mutableStateOf(true) }
     var simSlotIndex by rememberSaveable { mutableIntStateOf(-1) }
     val scope = rememberCoroutineScope()
@@ -130,15 +131,6 @@ fun Config(
     fun loadFlags() {
         Log.d(TAG, "loadFlags")
         simSlotIndex = try { moder.simSlotIndex } catch (e: Exception) { -1 }
-        configurableItems =
-            listOf(CarrierConfigManager::class.java, *CarrierConfigManager::class.java.declaredClasses)
-                .map {
-                    it.declaredFields.filter { field ->
-                        field.name != "KEY_PREFIX" && field.name.startsWith("KEY_")
-                    }
-                }.flatten()
-                .associate { field -> field.name to field.get(field) as String }
-        reversedConfigurableItems = configurableItems.entries.associate { (k, v) -> v to k }
         voLTEEnabled = moder.isVoLteConfigEnabled
         persistentVoLTE =
             VERSION.SDK_INT >= VERSION_CODES.S &&
@@ -225,7 +217,7 @@ fun Config(
                 label = stringResource(R.string.diag_screen_title),
                 value = stringResource(R.string.diag_entry_description),
             ) {
-                navController.navigate("config$subId/diagnostics")
+                navController.navigate(configDiagnosticsRoute(subId))
             }
             HeaderText(text = stringResource(R.string.feature_toggles))
             BooleanPropertyView(label = stringResource(R.string.enable_volte), toggled = voLTEEnabled) {
@@ -684,13 +676,13 @@ fun Config(
                 label = stringResource(R.string.expert_mode),
                 value = "",
             ) {
-                navController.navigate("config$subId/edit")
+                navController.navigate(configEditRoute(subId))
             }
             ClickablePropertyView(
                 label = stringResource(R.string.dump_config),
                 value = "",
             ) {
-                navController.navigate("config$subId/dump")
+                navController.navigate(configDumpRoute(subId))
             }
             ClickablePropertyView(
                 label = stringResource(R.string.restart_ims_registration),
