@@ -48,7 +48,7 @@ The app works through the standard system API `CarrierConfigManager`, using the 
 > If you already have [ShizuStore](https://github.com/timschneeb/ShizuStore), you can install Pixel IMS X from there: the store installs apps through Shizuku and keeps them up to date. The app is listed in [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku#google-pixel), the catalog ShizuStore builds its list from.
 
 <p align="center">
-  <img src="docs/screenshots/01_github_assets.png" width="260" alt="Pixel IMS X release page in the pixel-ims-x repository" />
+  <img src="docs/screenshots/01_github_assets.png" width="260" alt="Downloading the APK from Assets" />
   <img src="docs/screenshots/02_apps_installed.png" width="260" alt="Installed app icons" />
 </p>
 

@@ -45,7 +45,7 @@
 > Если [ShizuStore](https://github.com/timschneeb/ShizuStore) у вас уже установлен, Pixel IMS X можно поставить оттуда: магазин устанавливает приложения через Shizuku и сам следит за обновлениями. Приложение входит в каталог [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku#google-pixel), из которого ShizuStore берёт свой список.
 
 <p align="center">
-  <img src="docs/screenshots/01_github_assets.png" width="260" alt="Страница релиза Pixel IMS X в репозитории pixel-ims-x" />
+  <img src="docs/screenshots/01_github_assets.png" width="260" alt="Скачивание APK из раздела Assets" />
   <img src="docs/screenshots/02_apps_installed.png" width="260" alt="Установленные иконки приложений" />
 </p>
 
