@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:scaleX="0.0616438356" android:scaleY="0.0616438356"
+        android:translateX="15.4109589041" android:translateY="15.4109589041">
+        <path android:name="phone_frame" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M450 455 H585 C642 455 686 497 686 555 V911 C686 967 645 1010 590 1010 H452 C395 1010 350 966 350 910 V555 C350 500 394 455 450 455 Z M452 496 H586 C620 496 645 522 645 557 V913 C645 944 621 968 591 968 H447 C417 968 392 944 392 913 V556 C392 523 418 496 452 496 Z"/>
+        <path android:name="navigation_dash" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M490 897 H553 C562 897 569.5 904 569.5 913 C569.5 922 562 929 553 929 H490 C481 929 473.5 922 473.5 913 C473.5 904 481 897 490 897 Z"/>
+        <path android:name="outer_arc" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M614 206 C723 199 818 223 891 280 C971 338 1031 431 1043 540 C1047 565 1031 586 1008 589 C985 592 963 576 960 553 C950 464 906 390 846 344 C786 298 706 284 619 290 C595 292 576 274 575 250 C573 227 590 208 614 206 Z"/>
+        <path android:name="inner_arc" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M617 341 C690 336 758 352 810 398 C864 443 899 508 909 581 C913 605 896 626 873 629 C850 632 829 616 826 592 C818 535 792 486 752 456 C716 428 671 418 624 423 C600 425 581 408 579 386 C577 362 594 343 617 341 Z"/>
+        <path android:name="signal_dot" android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M756 588 C756 626 725 657 687 657 C649 657 618 626 618 588 C618 550 649 519 687 519 C725 519 756 550 756 588 Z"/>
+    </group>
+</vector>

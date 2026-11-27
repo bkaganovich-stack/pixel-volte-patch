@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <string name="app_name">Pixel IMS</string>
+  <string name="app_name">Pixel IMS X</string>
   <string name="title_activity_home">HomeActivity</string>
   <string name="home">ホーム</string>
   <string name="config">設定</string>
@@ -139,6 +139,17 @@
   <string name="diag_fix_enable_nr">5G を有効化 (NSA + SA)</string>
   <string name="diag_fix_network_settings">ネットワーク設定を開く</string>
   <string name="diag_fix_sim_settings">SIM 設定を開く</string>
+  <string name="legacy_header">Pixel IMS からの移行</string>
+  <string name="legacy_same_key">Pixel IMS %1$s がまだインストールされています。Pixel IMS X はその後継です。ボタンをタップすると、設定をここにコピーして古いアプリを削除します。「再起動後も VoLTE を維持」など Android 自体が保存するスイッチはそのまま残ります。</string>
+  <string name="legacy_other_key">Pixel IMS %1$s がまだインストールされています。別の鍵で署名されているため、設定を自動ではコピーできません。設定を残すには、古いアプリを開いて設定をファイルにエクスポートし、ここでインポートしてください。その後、再起動後に両方のアプリがキャリア設定を変更しないよう、古いアプリを削除してください。</string>
+  <string name="legacy_needs_shizuku">先に Pixel IMS X に Shizuku の権限を許可してください。</string>
+  <string name="legacy_move_button">設定をコピーして Pixel IMS を削除</string>
+  <string name="legacy_moving">移行中…</string>
+  <string name="legacy_open_old">Pixel IMS を開いて設定をエクスポート</string>
+  <string name="legacy_remove_button">Pixel IMS を削除</string>
+  <string name="legacy_done">完了：%1$d 件の設定をコピーし、古い Pixel IMS を削除しました。</string>
+  <string name="legacy_copied_not_removed">%1$d 件の設定をコピーしました。Pixel IMS を自動で削除できなかったため、システムのダイアログで削除を確定してください。</string>
+  <string name="legacy_failed">設定をコピーできませんでした：%1$s</string>
   <string name="conflicts_header">他の IMS ツール</string>
   <string name="conflicts_intro">これらのアプリは同じキャリア設定を変更します。Android は最後に書き込まれた値だけを保持するため、あなたの設定が上書きされることがあります。</string>
   <string name="conflict_active">現在あなたの SIM で設定が有効になっており、Shizuku が起動するたびに再適用されます。タップでアプリ情報を開きます。</string>

@@ -6,7 +6,10 @@
 
 ---
 
-**Pixel IMS** enables voice calls over LTE (VoLTE) and over Wi-Fi (VoWiFi) on Google Pixel phones on carriers for which Google has restricted these features in software.
+**Pixel IMS X** enables voice calls over LTE (VoLTE) and over Wi-Fi (VoWiFi) on Google Pixel phones on carriers for which Google has restricted these features in software.
+
+> [!IMPORTANT]
+> **Moving from Pixel IMS 1.3.x.** Since 2.0.0 the app is called **Pixel IMS X** and installs as a separate app next to the old one. Install Pixel IMS X, allow it Shizuku access and tap **Copy settings and remove Pixel IMS** on the home screen. Your settings are copied and the old app removes itself. This works automatically from 1.3.10 and 1.3.11. With 1.3.9 or older, export the settings to a file in the old app first, then import the file in Pixel IMS X.
 
 The app works through the standard system API `CarrierConfigManager`, using the privileges of **Shizuku-Next** (an adapted fork of Shizuku with full support for Android 16–17):
 * **Safe for the system:** the bootloader stays locked and the warranty stays intact.
@@ -34,7 +37,7 @@ The app works through the standard system API `CarrierConfigManager`, using the 
 ## 📥 Step 1. Download and install the apps
 
 1. Go to the [**Shizuku-Next**](https://github.com/rushiranpise/Shizuku-Next/releases) releases page, expand **Assets** under the latest version, download the `.apk` file and install it.
-2. Go to the [**Pixel IMS**](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) releases page, open **Assets** the same way, download the `.apk` and install the app on your phone.
+2. Go to the [**Pixel IMS X**](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) releases page, open **Assets** the same way, download the `.apk` and install the app on your phone.
 
 <p align="center">
   <a href="https://github.com/bkaganovich-stack/pixel-volte-patch/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" height="80" alt="Get it on GitHub" /></a>
@@ -42,7 +45,7 @@ The app works through the standard system API `CarrierConfigManager`, using the 
 </p>
 
 > [!TIP]
-> If you already have [ShizuStore](https://github.com/timschneeb/ShizuStore), you can install Pixel IMS from there: the store installs apps through Shizuku and keeps them up to date. The app is listed in [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku#google-pixel), the catalog ShizuStore builds its list from.
+> If you already have [ShizuStore](https://github.com/timschneeb/ShizuStore), you can install Pixel IMS X from there: the store installs apps through Shizuku and keeps them up to date. The app is listed in [awesome-shizuku](https://github.com/timschneeb/awesome-shizuku#google-pixel), the catalog ShizuStore builds its list from.
 
 <p align="center">
   <img src="docs/screenshots/01_github_assets.png" width="260" alt="Downloading the APK from Assets" />
@@ -95,7 +98,7 @@ To pass configuration values to the modem, you need to turn on Android's built-i
 
 ## 🚀 Step 4. Turn on VoLTE and VoWiFi
 
-1. Open **Pixel IMS**.
+1. Open **Pixel IMS X**.
 2. In the Shizuku dialog that appears, select **Allow all the time**.
 3. Select the SIM card you need (if you use a physical SIM together with an eSIM, apply the patch to each card in turn).
 4. Turn on the **VoLTE** and **VoWiFi** switches, then tap the button that applies the patch.
@@ -106,7 +109,7 @@ To pass configuration values to the modem, you need to turn on Android's built-i
 
 <p align="center">
   <img src="docs/screenshots/08_shizuku_permission.png" width="260" alt="Granting the Shizuku permission" />
-  <img src="docs/screenshots/09_patch_applied.png" width="260" alt="Pixel IMS interface" />
+  <img src="docs/screenshots/09_patch_applied.png" width="260" alt="Pixel IMS X interface" />
   <br><sub>First screenshot: <a href="https://github.com/kyujin-cho/pixel-volte-patch">kyujin-cho/pixel-volte-patch</a> (README, GPL-3.0)</sub>
 </p>
 
@@ -145,9 +148,9 @@ Android's security architecture resets `CarrierConfig` overrides when the phone 
 1. **Turn off battery optimization for both apps:**
    * Open **Settings → Apps → See all apps**.
    * Select **Shizuku**, go to **App battery usage**, tap the text of the *"Allow background usage"* row itself and select **Unrestricted**.
-   * Repeat the same steps for **Pixel IMS**.
+   * Repeat the same steps for **Pixel IMS X**.
 1. **Turn on autostart in Shizuku-Next:**
-   * In the Shizuku-Next settings, turn on **Start on boot** and background monitoring (**Watchdog**). After the phone restarts and connects to a network, the service starts by itself, and **Pixel IMS** applies the modem configuration automatically.
+   * In the Shizuku-Next settings, turn on **Start on boot** and background monitoring (**Watchdog**). After the phone restarts and connects to a network, the service starts by itself, and **Pixel IMS X** applies the modem configuration automatically.
 
 ---
 
@@ -199,7 +202,7 @@ Wireless debugging in Android only works while the phone is connected to a Wi-Fi
 <br>
 
 This is normal Android behavior after a cold start. To have the settings restored without manual steps:
-* Check that **Shizuku-Next** and **Pixel IMS** both have battery usage set to **Unrestricted** (see [Keeping the settings after a restart](#-keeping-the-settings-after-a-restart)).
+* Check that **Shizuku-Next** and **Pixel IMS X** both have battery usage set to **Unrestricted** (see [Keeping the settings after a restart](#-keeping-the-settings-after-a-restart)).
 * Make sure **Disable adb authorization timeout** is turned on in **Developer options** — without it, the system revokes the debugging keys every 7 days.
 </details>
 

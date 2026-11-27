@@ -32,6 +32,10 @@ class PixelImsApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        // During the move from the old Pixel IMS, LegacyExportInstrumentation runs in the old
+        // app's process, where this class may be loaded too. Do nothing there.
+        if (packageName != BuildConfig.APPLICATION_ID) return
+
         // Needed before any telephony call, and this process may be started by
         // ShizukuProvider with no Activity ever created.
         HiddenApiBypass.addHiddenApiExemptions("L")
