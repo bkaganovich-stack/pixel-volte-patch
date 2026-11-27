@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Pixel IMS</string>
+    <string name="app_name">Pixel IMS X</string>
     <string name="title_activity_home">HomeActivity</string>
     <string name="home">Home</string>
     <string name="config">Config</string>
@@ -169,6 +169,17 @@
     <string name="diag_fix_enable_nr">Enable 5G (NSA + SA)</string>
     <string name="diag_fix_network_settings">Open network settings</string>
     <string name="diag_fix_sim_settings">Open SIM settings</string>
+    <string name="legacy_header">Move from Pixel IMS</string>
+    <string name="legacy_same_key">Pixel IMS %1$s is still installed. Pixel IMS X replaces it. Tap the button to copy its settings here and remove it. Switches that Android stores itself, such as Keep VoLTE on after reboot, stay as they are.</string>
+    <string name="legacy_other_key">Pixel IMS %1$s is still installed. It is signed with a different key, so its settings cannot be copied automatically. To keep them, open it, export the settings to a file, and import the file here. Then remove it, so the two apps do not both change carrier settings after a reboot.</string>
+    <string name="legacy_needs_shizuku">Grant Shizuku permission to Pixel IMS X first.</string>
+    <string name="legacy_move_button">Copy settings and remove Pixel IMS</string>
+    <string name="legacy_moving">Moving…</string>
+    <string name="legacy_open_old">Open Pixel IMS to export settings</string>
+    <string name="legacy_remove_button">Remove Pixel IMS</string>
+    <string name="legacy_done">Done: %1$d settings copied and the old Pixel IMS removed.</string>
+    <string name="legacy_copied_not_removed">%1$d settings copied. Pixel IMS could not be removed automatically: confirm the removal in the system dialog.</string>
+    <string name="legacy_failed">Could not copy the settings: %1$s</string>
     <string name="conflicts_header">Other IMS tools</string>
     <string name="conflicts_intro">These apps change the same carrier settings. Android keeps only the value written last, so they can overwrite yours.</string>
     <string name="conflict_active">Its settings are active on your SIM right now, and it re-applies them every time Shizuku starts. Tap to open app info.</string>

@@ -28,6 +28,9 @@ object ConflictDetector {
 
     private val KNOWN =
         listOf(
+            // The old Pixel IMS: our 1.3.x releases and the original kyujin-cho app. Ours
+            // re-applies on boot and on Shizuku start; Home offers to move from it and remove it.
+            Tool("dev.bluehouse.enablevolte", appliesAutomatically = true),
             // vvb2060/Ims, and the TensorIMS / Carrier IMS for Pixel forks built on it:
             // overrides every SIM whenever Shizuku starts.
             Tool("io.github.vvb2060.ims", appliesAutomatically = true),

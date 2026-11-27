@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -36,8 +38,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
 import dev.bluehouse.enablevolte.BootLog
 import dev.bluehouse.enablevolte.BuildConfig
@@ -52,8 +56,10 @@ import dev.bluehouse.enablevolte.checkShizukuPermission
 import dev.bluehouse.enablevolte.components.BooleanPropertyView
 import dev.bluehouse.enablevolte.components.ClickablePropertyView
 import dev.bluehouse.enablevolte.components.HeaderText
+import dev.bluehouse.enablevolte.components.OnLifecycleEvent
 import dev.bluehouse.enablevolte.components.StringPropertyView
 import dev.bluehouse.enablevolte.getLatestAppVersion
+import dev.bluehouse.enablevolte.migration.LegacyMigration
 import dev.bluehouse.enablevolte.parseReleaseTag
 import dev.bluehouse.enablevolte.releaseUrl
 import dev.bluehouse.enablevolte.uniqueName
@@ -85,6 +91,52 @@ fun Home(navController: NavController) {
     var isIMSRegistered by remember { mutableStateOf(listOf<Boolean?>()) }
     var conflicts by remember { mutableStateOf(listOf<ConflictDetector.Conflict>()) }
     var newerVersion by rememberSaveable { mutableStateOf("") }
+
+    // The old Pixel IMS app, if it is still installed (see LegacyMigration).
+    var legacy by remember { mutableStateOf(LegacyMigration.detect(context)) }
+    var legacyVersion by remember { mutableStateOf(LegacyMigration.legacyVersion(context)) }
+    var migrating by remember { mutableStateOf(false) }
+    var migrationMessage by remember { mutableStateOf<String?>(null) }
+
+    OnLifecycleEvent { _, event ->
+        // Back from the system uninstall dialog, or the old app was removed another way.
+        if (event == Lifecycle.Event.ON_RESUME) {
+            legacy = LegacyMigration.detect(context)
+            legacyVersion = LegacyMigration.legacyVersion(context)
+        }
+    }
+
+    fun moveFromLegacy() {
+        migrating = true
+        migrationMessage = null
+        scope.launch {
+            val outcome =
+                withContext(Dispatchers.IO) {
+                    LegacyMigration.exportFromLegacy(context).map { export ->
+                        val copied = LegacyMigration.importExport(context, export)
+                        copied to LegacyMigration.uninstallLegacy(context)
+                    }
+                }
+            outcome
+                .onSuccess { (copied, removed) ->
+                    migrationMessage =
+                        if (removed) {
+                            context.getString(R.string.legacy_done, copied)
+                        } else {
+                            context.getString(R.string.legacy_copied_not_removed, copied)
+                        }
+                    if (!removed) context.startActivity(LegacyMigration.uninstallIntent())
+                }.onFailure { e ->
+                    Log.e(TAG, "Moving from the old app failed", e)
+                    migrationMessage = context.getString(R.string.legacy_failed, e.message ?: e.javaClass.simpleName)
+                }
+            autoApplyEnabled = repo.autoApplyEnabled
+            bootLogText = BootLog.readNewestFirst(context)
+            legacy = LegacyMigration.detect(context)
+            legacyVersion = LegacyMigration.legacyVersion(context)
+            migrating = false
+        }
+    }
 
     fun loadFlags() {
         shizukuGranted = true
@@ -269,6 +321,69 @@ fun Home(navController: NavController) {
     }
 
     Column(modifier = Modifier.padding(Dp(16f)).verticalScroll(scrollState)) {
+        if (legacy != LegacyMigration.Legacy.NONE || migrationMessage != null) {
+            HeaderText(text = stringResource(R.string.legacy_header))
+            if (legacy != LegacyMigration.Legacy.NONE) {
+                val version = legacyVersion ?: ""
+                Text(
+                    text =
+                        if (legacy == LegacyMigration.Legacy.SAME_KEY) {
+                            stringResource(R.string.legacy_same_key, version)
+                        } else {
+                            stringResource(R.string.legacy_other_key, version)
+                        },
+                    fontSize = 14.sp,
+                )
+                if (!shizukuGranted) {
+                    Text(
+                        text = stringResource(R.string.legacy_needs_shizuku),
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+                if (legacy == LegacyMigration.Legacy.SAME_KEY) {
+                    Button(
+                        onClick = { moveFromLegacy() },
+                        enabled = shizukuGranted && !migrating,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ) {
+                        Text(stringResource(if (migrating) R.string.legacy_moving else R.string.legacy_move_button))
+                    }
+                } else {
+                    OutlinedButton(
+                        onClick = {
+                            context.packageManager.getLaunchIntentForPackage(LegacyMigration.LEGACY_PACKAGE)?.let {
+                                context.startActivity(it)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    ) {
+                        Text(stringResource(R.string.legacy_open_old))
+                    }
+                    Button(
+                        onClick = {
+                            migrating = true
+                            scope.launch {
+                                val removed =
+                                    shizukuGranted && withContext(Dispatchers.IO) { LegacyMigration.uninstallLegacy(context) }
+                                if (!removed) context.startActivity(LegacyMigration.uninstallIntent())
+                                legacy = LegacyMigration.detect(context)
+                                migrating = false
+                            }
+                        },
+                        enabled = !migrating,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.legacy_remove_button))
+                    }
+                }
+            }
+            migrationMessage?.let {
+                Text(text = it, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
+
         HeaderText(text = stringResource(R.string.version))
         if (newerVersion.isNotEmpty()) {
             ClickablePropertyView(
@@ -301,14 +416,16 @@ fun Home(navController: NavController) {
             )
         }
 
-        if (conflicts.isNotEmpty()) {
+        // The old Pixel IMS has its own section above while it is installed.
+        val otherTools = conflicts.filter { it.packageName != LegacyMigration.LEGACY_PACKAGE || legacy == LegacyMigration.Legacy.NONE }
+        if (otherTools.isNotEmpty()) {
             HeaderText(text = stringResource(R.string.conflicts_header))
             Text(
                 text = stringResource(R.string.conflicts_intro),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.outline,
             )
-            for (conflict in conflicts) {
+            for (conflict in otherTools) {
                 val description =
                     when {
                         conflict.activeOnSubscriptions.isNotEmpty() -> R.string.conflict_active

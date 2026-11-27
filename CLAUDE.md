@@ -130,9 +130,9 @@ The project uses **ktlint 0.48.2**. Lint violations will fail CI checks on PRs a
 
 ## Distribution
 
-The app is distributed via:
-1. **Google Play Store**: `dev.bluehouse.enablevolte`
-2. **GitHub Releases**: Direct APK download
+This fork is **Pixel IMS X** (since 2.0.0), distributed as GitHub Releases (`PixelIMSX-<version>-v<code>.apk`) and through ShizuStore.
+- `applicationId` is `io.github.bkaganovich_stack.pixelimsx`; the Kotlin namespace stays `dev.bluehouse.enablevolte` so upstream patches still apply.
+- The old app (package `dev.bluehouse.enablevolte`: our 1.3.x and the original upstream app) can stay installed next to it. `migration/LegacyMigration.kt` copies its settings through `LegacyExportInstrumentation`, which runs inside the old app's process and only works when both are signed with the same key (1.3.10+). It then uninstalls the old app through Shizuku.
 
 ## Troubleshooting Development Issues
 

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Pixel IMS</string>
+    <string name="app_name">Pixel IMS X</string>
     <string name="title_activity_home">HomeActivity</string>
     <string name="home">主页</string>
     <string name="config">配置</string>
@@ -139,6 +139,17 @@
     <string name="diag_fix_enable_nr">启用 5G（NSA + SA）</string>
     <string name="diag_fix_network_settings">打开网络设置</string>
     <string name="diag_fix_sim_settings">打开 SIM 卡设置</string>
+    <string name="legacy_header">从 Pixel IMS 迁移</string>
+    <string name="legacy_same_key">Pixel IMS %1$s 仍已安装。Pixel IMS X 将取代它。点按按钮即可把它的设置复制到这里并卸载它。由 Android 自身保存的开关（例如“重启后保持 VoLTE”）保持不变。</string>
+    <string name="legacy_other_key">Pixel IMS %1$s 仍已安装。它使用不同的密钥签名，因此无法自动复制其设置。如需保留设置，请打开它，把设置导出为文件，再在这里导入。然后卸载它，以免两个应用在重启后都修改运营商设置。</string>
+    <string name="legacy_needs_shizuku">请先授予 Pixel IMS X Shizuku 权限。</string>
+    <string name="legacy_move_button">复制设置并卸载 Pixel IMS</string>
+    <string name="legacy_moving">正在迁移…</string>
+    <string name="legacy_open_old">打开 Pixel IMS 导出设置</string>
+    <string name="legacy_remove_button">卸载 Pixel IMS</string>
+    <string name="legacy_done">完成：已复制 %1$d 项设置并卸载旧版 Pixel IMS。</string>
+    <string name="legacy_copied_not_removed">已复制 %1$d 项设置。无法自动卸载 Pixel IMS：请在系统对话框中确认卸载。</string>
+    <string name="legacy_failed">无法复制设置：%1$s</string>
     <string name="conflicts_header">其他 IMS 工具</string>
     <string name="conflicts_intro">这些应用会修改相同的运营商设置。Android 只保留最后写入的值，因此它们可能覆盖你的设置。</string>
     <string name="conflict_active">它的设置当前正在你的 SIM 卡上生效，并且每次 Shizuku 启动时都会重新应用。点按可打开应用信息。</string>
