@@ -84,7 +84,7 @@ val SubscriptionInfo.uniqueName: String
     get() = "${this.displayName} (SIM ${this.simSlotIndex + 1})"
 
 /** Repository this build checks for updates and links its releases to. */
-const val GITHUB_REPO = "bkaganovich-stack/pixel-volte-patch"
+const val GITHUB_REPO = "bkaganovich-stack/pixel-ims-x"
 
 /** Release page for a tag as returned by [getLatestAppVersion]. */
 fun releaseUrl(tag: String) = "https://github.com/$GITHUB_REPO/releases/tag/$tag"

@@ -1,6 +1,6 @@
 <p align="right"><a href="README.md">Русский</a> | <b>English</b></p>
 
-[![Android](https://img.shields.io/badge/Android-14%E2%80%9317-3DDC84?logo=android&logoColor=white)](#) [![Devices](https://img.shields.io/badge/Google%20Pixel-6%E2%80%9311%20Series-4285F4?logo=google&logoColor=white)](#) [![Shizuku](https://img.shields.io/badge/Powered%20by-Shizuku--Next-FF6F00)](#) [![Release](https://img.shields.io/github/v/release/bkaganovich-stack/pixel-volte-patch?color=blue)](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) [![awesome-shizuku](https://img.shields.io/badge/awesome--shizuku-listed-fc60a8?logo=awesomelists&logoColor=white)](https://github.com/timschneeb/awesome-shizuku#google-pixel)
+[![Android](https://img.shields.io/badge/Android-14%E2%80%9317-3DDC84?logo=android&logoColor=white)](#) [![Devices](https://img.shields.io/badge/Google%20Pixel-6%E2%80%9311%20Series-4285F4?logo=google&logoColor=white)](#) [![Shizuku](https://img.shields.io/badge/Powered%20by-Shizuku--Next-FF6F00)](#) [![Release](https://img.shields.io/github/v/release/bkaganovich-stack/pixel-ims-x?color=blue)](https://github.com/bkaganovich-stack/pixel-ims-x/releases) [![awesome-shizuku](https://img.shields.io/badge/awesome--shizuku-listed-fc60a8?logo=awesomelists&logoColor=white)](https://github.com/timschneeb/awesome-shizuku#google-pixel)
 
 # Enabling VoLTE and VoWiFi on Google Pixel phones without root or an unlocked bootloader
 
@@ -37,10 +37,10 @@ The app works through the standard system API `CarrierConfigManager`, using the 
 ## 📥 Step 1. Download and install the apps
 
 1. Go to the [**Shizuku-Next**](https://github.com/rushiranpise/Shizuku-Next/releases) releases page, expand **Assets** under the latest version, download the `.apk` file and install it.
-2. Go to the [**Pixel IMS X**](https://github.com/bkaganovich-stack/pixel-volte-patch/releases) releases page, open **Assets** the same way, download the `.apk` and install the app on your phone.
+2. Go to the [**Pixel IMS X**](https://github.com/bkaganovich-stack/pixel-ims-x/releases) releases page, open **Assets** the same way, download the `.apk` and install the app on your phone.
 
 <p align="center">
-  <a href="https://github.com/bkaganovich-stack/pixel-volte-patch/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" height="80" alt="Get it on GitHub" /></a>
+  <a href="https://github.com/bkaganovich-stack/pixel-ims-x/releases/latest"><img src="https://raw.githubusercontent.com/Kunzisoft/Github-badge/main/get-it-on-github.png" height="80" alt="Get it on GitHub" /></a>
   <a href="https://shizustore.com/apps/pixel-ims-bkaganovich-stack-s-fork"><img src="https://raw.githubusercontent.com/timschneeb/ShizuStore/refs/heads/master/artwork/get-it-on-shizustore.png" height="80" alt="Get it on ShizuStore" /></a>
 </p>
 
